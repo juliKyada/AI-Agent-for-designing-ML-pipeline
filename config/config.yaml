@@ -1,0 +1,92 @@
+# MetaFlow Configuration
+
+# General Settings
+project_name: "MetaFlow"
+version: "1.0.0"
+random_seed: 42
+
+# Pipeline Settings
+pipeline:
+  max_iterations: 10  # Maximum iterations for pipeline improvement
+  early_stopping_rounds: 3  # Stop if no improvement after N rounds
+  min_improvement: 0.01  # Minimum improvement to continue optimization
+  n_candidate_pipelines: 5  # Number of initial candidate pipelines to generate
+
+# Data Processing
+data:
+  test_size: 0.2
+  validation_size: 0.1
+  max_missing_ratio: 0.5  # Drop columns with > 50% missing values
+  categorical_threshold: 10  # Columns with < 10 unique values treated as categorical
+  
+# Task Detection
+detection:
+  classification_threshold: 20  # If unique values < threshold, assume classification
+  min_samples_per_class: 10
+  
+# Model Training
+training:
+  cv_folds: 5  # Cross-validation folds
+  n_jobs: -1  # Use all CPU cores
+  verbose: 1
+  
+# Evaluation Metrics
+metrics:
+  classification:
+    - accuracy
+    - precision
+    - recall
+    - f1
+    - roc_auc
+  regression:
+    - r2
+    - mse
+    - rmse
+    - mae
+    - mape
+
+# Performance Thresholds
+thresholds:
+  min_score:
+    classification: 0.70  # Minimum acceptable accuracy/f1
+    regression: 0.60  # Minimum acceptable R²
+  overfitting_threshold: 0.10  # Max gap between train and validation score
+  
+# Model Search Space
+models:
+  classification:
+    - logistic_regression
+    - decision_tree
+    - random_forest
+    - xgboost
+    - lightgbm
+    - svm
+  regression:
+    - linear_regression
+    - ridge
+    - lasso
+    - decision_tree
+    - random_forest
+    - xgboost
+    - lightgbm
+    - svr
+
+# Hyperparameter Optimization
+hyperparameter_tuning:
+  enabled: true
+  n_trials: 50  # Number of Optuna trials
+  timeout: 300  # Max seconds per optimization
+  
+# Logging
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>"
+  log_to_file: true
+  log_file: "logs/metaflow.log"
+
+# Output
+output:
+  save_models: true
+  model_dir: "models/"
+  save_predictions: true
+  save_explanations: true
