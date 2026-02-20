@@ -1,0 +1,9 @@
+# MetaFlow - reduce connection drops during long pipeline runs
+
+[server]
+# Keep websocket alive longer during long-running training (default can drop after ~1–2 min)
+websocketPingInterval = 45
+# Keep disconnected session data longer so refresh can restore last run (seconds)
+disconnectedSessionTTL = 600
+# Allow larger uploads for datasets (MB)
+maxUploadSize = 200

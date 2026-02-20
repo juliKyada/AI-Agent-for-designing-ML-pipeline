@@ -75,6 +75,16 @@ st.markdown("""
     [data-testid="stAppViewContainer"] > div {
         opacity: 1 !important;
     }
+    /* Smaller, compact text for the evaluation report */
+    .metaflow-report, .metaflow-report p, .metaflow-report li, .metaflow-report strong {
+        font-size: 1.3rem !important;
+        line-height: 1.4 !important;
+    }
+    .metaflow-report hr {
+        margin: 0.6rem 0 !important;
+        border: none;
+        border-top: 1px solid rgba(128, 128, 128, 0.5);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -99,14 +109,37 @@ def _render_logs_scrollable(log_lines, max_height_px=360):
     (function() {
         var el = document.getElementById('metaflow-log-scroll');
         if (!el) return;
-        var key = 'metaflow_log_autoscroll';
+        var keyAuto = 'metaflow_log_autoscroll';
+        var keyTop = 'metaflow_log_scrollTop';
+        var keyHeight = 'metaflow_log_scrollHeight';
+        function getStorage() {
+            try {
+                if (window.parent && window.parent !== window && window.parent.localStorage)
+                    return window.parent.localStorage;
+            } catch (e) {}
+            try { return localStorage; } catch (e) {}
+            return sessionStorage;
+        }
+        var storage = getStorage();
         el.addEventListener('scroll', function() {
             var atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 25;
-            try { sessionStorage.setItem(key, atBottom ? '1' : '0'); } catch(e) {}
+            try {
+                storage.setItem(keyAuto, atBottom ? '1' : '0');
+                storage.setItem(keyTop, String(el.scrollTop));
+                storage.setItem(keyHeight, String(el.scrollHeight));
+            } catch (e) {}
         });
-        if (sessionStorage.getItem(key) !== '0') {
+        var atBottom = storage.getItem(keyAuto) !== '0';
+        if (atBottom) {
             el.scrollTop = el.scrollHeight;
-            try { sessionStorage.setItem(key, '1'); } catch(e) {}
+            try { storage.setItem(keyAuto, '1'); storage.setItem(keyTop, String(el.scrollTop)); storage.setItem(keyHeight, String(el.scrollHeight)); } catch(e) {}
+        } else {
+            var savedTop = parseFloat(storage.getItem(keyTop)) || 0;
+            var savedHeight = parseFloat(storage.getItem(keyHeight)) || 1;
+            if (savedHeight > 0 && el.scrollHeight > 0) {
+                var ratio = Math.min(1, savedTop / savedHeight);
+                el.scrollTop = ratio * el.scrollHeight;
+            }
         }
     })();
     </script>
@@ -177,7 +210,7 @@ def main():
                     min_value=1,
                     max_value=20,
                     value=10,
-                    help="Maximum iterations for pipeline improvement"
+                    help="Reserved for future multi-round optimization (currently not used)."
                 )
                 
                 n_pipelines = st.slider(
@@ -190,7 +223,7 @@ def main():
             
             # Run button (only set flag; actual run happens in main area so logs appear on the right)
             st.markdown("---")
-            run_button = st.button("🚀 Run MetaFlow", type="primary", use_container_width=True)
+            run_button = st.button("🚀 Run MetaFlow", type="primary", width="stretch")
             
             if run_button:
                 st.session_state.run_pipeline = True
@@ -279,15 +312,15 @@ def show_landing_page():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🌸 Iris Dataset (Classification)", use_container_width=True):
+        if st.button("🌸 Iris Dataset (Classification)", width="stretch"):
             load_demo_dataset('iris')
     
     with col2:
-        if st.button("🏥 Diabetes Dataset (Regression)", use_container_width=True):
+        if st.button("🏥 Diabetes Dataset (Regression)", width="stretch"):
             load_demo_dataset('diabetes')
     
     with col3:
-        if st.button("🎲 Synthetic Dataset", use_container_width=True):
+        if st.button("🎲 Synthetic Dataset", width="stretch"):
             load_demo_dataset('synthetic')
 
 def load_demo_dataset(dataset_name):
@@ -333,11 +366,11 @@ def show_dataset_overview():
     
     # Show data
     with st.expander("👁️ View Data", expanded=False):
-        st.dataframe(df.head(100), use_container_width=True)
+        st.dataframe(df.head(100), width="stretch")
     
     # Show statistics
     with st.expander("📈 Statistics", expanded=False):
-        st.dataframe(df.describe(), use_container_width=True)
+        st.dataframe(df.describe(), width="stretch")
 
     # Execution logs — auto-expand when Run is clicked so user can see; scrollable box with smart auto-scroll
     with st.expander(
@@ -459,7 +492,7 @@ def run_metaflow(df, target_column, max_iterations, n_pipelines):
 def show_results():
     """Show MetaFlow results"""
     results = st.session_state.results
-    
+
     st.markdown("---")
     st.markdown("## 🎯 Results")
     
@@ -512,7 +545,7 @@ def show_results():
     with col1:
         # Save model
         model_path = 'models/best_model.pkl'
-        if st.button("💾 Save Best Model", use_container_width=True):
+        if st.button("💾 Save Best Model", width="stretch"):
             from src.main import MetaFlowAgent
             agent = MetaFlowAgent()
             agent.agent.results = results
@@ -527,7 +560,7 @@ def show_results():
             data=report,
             file_name="metaflow_report.txt",
             mime="text/plain",
-            use_container_width=True
+            width="stretch"
         )
 
 def show_performance_tab(results):
@@ -582,7 +615,7 @@ def show_performance_tab(results):
             title="Performance Comparison"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     
     else:
         # Regression metrics
@@ -627,7 +660,7 @@ def show_all_pipelines_tab(results):
             })
     
     df_comparison = pd.DataFrame(comparison_data)
-    st.dataframe(df_comparison, use_container_width=True)
+    st.dataframe(df_comparison, width="stretch")
     
     # Visualization
     if results['task_type'] == 'classification':
@@ -646,7 +679,7 @@ def show_all_pipelines_tab(results):
         title=f'Pipeline Comparison - {metric_name}'
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 def show_issues_tab(results):
     """Show issues and recommendations"""
@@ -679,8 +712,9 @@ def show_full_report_tab(results):
     """Show full report"""
     st.markdown("### 📄 Complete Evaluation Report")
     
-    # Show explanation
-    st.markdown(results['explanation'])
+    # Show explanation in a smaller font container
+    report_html = f'<div class="metaflow-report">\n\n{results["explanation"]}\n\n</div>'
+    st.markdown(report_html, unsafe_allow_html=True)
     
     # Show preprocessing information
     if 'preprocessing' in results and results['preprocessing']:
@@ -718,7 +752,7 @@ def show_full_report_tab(results):
                 'Feature': list(preprocessing['imputation_values'].keys()),
                 'Value': list(preprocessing['imputation_values'].values())
             })
-            st.dataframe(imputation_df, use_container_width=True)
+            st.dataframe(imputation_df, width="stretch")
     
     # Show full report in expandable section
     with st.expander("📊 Detailed Technical Report", expanded=False):

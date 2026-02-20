@@ -233,25 +233,27 @@ class PipelineAgent:
         lines.append("=" * 80)
         lines.append("")
         
-        # Dataset Overview
-        lines.append("1. DATASET OVERVIEW")
-        lines.append("-" * 80)
+        def sep():
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        # 1. Dataset Overview: question on one line, answer on next line(s)
+        lines.append("**1. DATASET OVERVIEW:**  ")
         ds_info = self.metadata['dataset']
         lines.append(f"   • Samples: {ds_info['n_samples']:,}")
         lines.append(f"   • Features: {ds_info['n_features']}")
         lines.append(f"   • Target: {ds_info['target_name']}")
-        lines.append("")
+        sep()
         
-        # Task Detection
-        lines.append("2. TASK DETECTION")
-        lines.append("-" * 80)
+        # 2. Task Detection
+        lines.append("**2. TASK DETECTION:**  ")
         lines.append(f"   • Task Type: {self.task_type.value.upper()}")
         lines.append(f"   • Detection Reason: {self.task_detector.reason}")
-        lines.append("")
+        sep()
         
-        # Pipelines Evaluated
-        lines.append("3. PIPELINES EVALUATED")
-        lines.append("-" * 80)
+        # 3. Pipelines Evaluated
+        lines.append("**3. PIPELINES EVALUATED:**  ")
         lines.append(f"   • Total Pipelines: {len(self.evaluations)}")
         for eval_result in self.evaluations:
             name = eval_result['pipeline_name']
@@ -262,14 +264,12 @@ class PipelineAgent:
                 score = eval_result['metrics']['test_r2']
                 metric = "R²"
             lines.append(f"   • {name}: {metric} = {score:.4f}")
-        lines.append("")
+        sep()
         
-        # Best Pipeline
-        lines.append("4. BEST PIPELINE")
-        lines.append("-" * 80)
+        # 4. Best Pipeline
+        lines.append("**4. BEST PIPELINE:**  ")
         lines.append(f"   • Name: {best_pipeline['pipeline_name']}")
         metrics = best_pipeline['metrics']
-        
         if self.task_type == TaskType.CLASSIFICATION:
             lines.append(f"   • Test Accuracy: {metrics['test_accuracy']:.4f}")
             lines.append(f"   • Test F1 Score: {metrics['test_f1']:.4f}")
@@ -279,47 +279,41 @@ class PipelineAgent:
             lines.append(f"   • Test R² Score: {metrics['test_r2']:.4f}")
             lines.append(f"   • Test RMSE: {metrics['test_rmse']:.4f}")
             lines.append(f"   • Test MAE: {metrics['test_mae']:.4f}")
-        
         lines.append(f"   • CV Score: {metrics['cv_mean']:.4f} (+/- {metrics['cv_std']:.4f})")
-        lines.append("")
+        sep()
         
-        # Issues and Recommendations
+        # 5 & 6. Issues and Recommendations, or Status
         if best_pipeline['issues']:
-            lines.append("5. DETECTED ISSUES")
-            lines.append("-" * 80)
+            lines.append("**5. DETECTED ISSUES:**  ")
             for issue in best_pipeline['issues']:
                 lines.append(f"   ⚠ {issue}")
-            lines.append("")
+            sep()
             
-            lines.append("6. RECOMMENDATIONS")
-            lines.append("-" * 80)
+            lines.append("**6. RECOMMENDATIONS:**  ")
             if improvement_plan['needs_improvement']:
-                if 'overall_recommendations' in improvement_plan and improvement_plan['overall_recommendations']:
+                if improvement_plan.get('overall_recommendations'):
                     for rec in improvement_plan['overall_recommendations']:
                         lines.append(f"   • {rec}")
                 else:
                     lines.append("   • Consider hyperparameter tuning for further optimization")
                     lines.append("   • Review feature engineering opportunities")
-            lines.append("")
+            sep()
         else:
-            lines.append("5. STATUS")
-            lines.append("-" * 80)
+            lines.append("**5. STATUS:**  ")
             lines.append("   ✓ No significant issues detected")
             lines.append("   ✓ Pipeline meets performance criteria")
-            lines.append("")
+            sep()
         
-        # Conclusion
-        lines.append("7. CONCLUSION")
-        lines.append("-" * 80)
+        # 7. Conclusion
+        lines.append("**7. CONCLUSION:**  ")
         lines.append(f"   The best performing pipeline is '{best_pipeline['pipeline_name']}'")
         lines.append(f"   for this {self.task_type.value} task.")
-        
         if not best_pipeline['issues']:
             lines.append("   The model shows good performance without major issues.")
         else:
             lines.append("   Some improvements are recommended (see above).")
+        sep()
         
-        lines.append("")
         lines.append("=" * 80)
         
         return "\n".join(lines)

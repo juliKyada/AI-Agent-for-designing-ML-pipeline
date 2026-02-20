@@ -124,46 +124,6 @@ Edit `config/config.yaml` to customize:
 - Model search space
 - Performance thresholds
 
-## 🖥️ Running on GPU
-
-XGBoost and LightGBM can use the GPU for faster training. Other models (scikit-learn) run on CPU.
-
-### 1. Prerequisites
-
-- **NVIDIA GPU** with CUDA support (Compute Capability 5.0+)
-- **CUDA Toolkit** (e.g. CUDA 11 or 12) and matching **cuDNN** installed
-- **Python** with GPU-enabled XGBoost and LightGBM
-
-### 2. Install GPU-enabled packages
-
-**XGBoost (GPU):** Install from pip (binary often includes CUDA support), or build from source with CUDA:
-
-```bash
-pip install xgboost  # Many wheels include GPU support
-# If not, install CUDA then: pip install xgboost --config-settings=cmake.define.USE_CUDA=ON
-```
-
-**LightGBM (GPU):** Build with CUDA or use a pre-built GPU wheel if available:
-
-```bash
-pip install lightgbm  # Check for lightgbm-gpu or build with --cuda
-# From source: https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html#build-cuda-version
-```
-
-### 3. Enable GPU in MetaFlow
-
-In `config/config.yaml`, under **training**, set:
-
-```yaml
-training:
-  use_gpu: true
-  device: "cuda"   # or "cuda:0", "cuda:1" for a specific GPU
-```
-
-Then run the app or your pipeline as usual. Execution Logs will show `GPU enabled for XGBoost and LightGBM` when active.
-
-**Note:** If GPU is not available, training may fail for XGBoost/LightGBM; set `use_gpu: false` to use CPU.
-
 ## 🚀 Deploy on Hugging Face Spaces
 
 You can run MetaFlow in the cloud for free using [Hugging Face Spaces](https://huggingface.co/spaces) (Streamlit).
@@ -223,7 +183,7 @@ You can run MetaFlow in the cloud for free using [Hugging Face Spaces](https://h
    - **Max optimization iterations:** 3–5 (not 10).
    - **CV folds:** 3 (in `config/config.yaml`: `training.cv_folds: 3`).
 2. **Ask users to upload small/medium datasets** (e.g. &lt; 5k rows for a smooth experience).
-3. **Set `use_gpu: false`** so XGBoost/LightGBM use CPU (free Spaces have no GPU).
+3. Free Spaces run on CPU; all models (XGBoost, LightGBM, etc.) use CPU.
 4. For **heavy training or big data**, use a **paid CPU Upgrade** (e.g. 8 vCPU, 32 GB RAM) or run the app on your own server/Colab.
 
 ### Other notes for Hugging Face

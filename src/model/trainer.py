@@ -4,7 +4,8 @@ Model trainer for training ML pipelines
 import numpy as np
 import pandas as pd
 import warnings
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.model_selection import train_test_split, cross_val_score, ParameterGrid
+from sklearn.base import clone
 from typing import Dict, List, Any, Tuple
 from src.detection.task_detector import TaskType
 from src.utils.logger import get_logger
@@ -131,7 +132,9 @@ class ModelTrainer:
         # Hyperparameter tuning
         if pipeline_dict['hyperparameters']:
             logger.info("  Performing hyperparameter tuning...")
-            pipeline = self._tune_hyperparameters(pipeline, pipeline_dict['hyperparameters'], X_train, y_train)
+            pipeline = self._tune_hyperparameters(
+                pipeline, pipeline_dict['hyperparameters'], X_train, y_train, pipeline_dict['name']
+            )
         else:
             logger.info("  Training with default parameters...")
             pipeline.fit(X_train, y_train)
@@ -140,13 +143,11 @@ class ModelTrainer:
         y_train_pred = pipeline.predict(X_train)
         y_test_pred = pipeline.predict(X_test)
         
-        # Calculate cross-validation score
+        # Calculate cross-validation score (use n_jobs=1 for tree models to avoid hang/deadlock)
         cv_folds = config.get('training.cv_folds', 5)
         scoring = self._get_scoring_metric()
-        
+        cv_n_jobs = self._safe_n_jobs_for_cv(pipeline_dict['name'])
         logger.info(f"  Computing {cv_folds}-fold cross-validation score...")
-        use_gpu = config.get('training.use_gpu', False)
-        cv_n_jobs = 1 if use_gpu else -1
         cv_scores = cross_val_score(pipeline, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=cv_n_jobs)
         
         result = {
@@ -171,40 +172,48 @@ class ModelTrainer:
         self.trained_models.append(result)
         return result
     
-    def _tune_hyperparameters(self, pipeline, param_grid: Dict, X_train, y_train):
+    def _safe_n_jobs_for_cv(self, pipeline_name: str) -> int:
+        """Use n_jobs=1 for tree/boosting models to avoid multiprocessing + multithreading deadlocks (e.g. stuck on last pipeline)."""
+        if pipeline_name in ('LightGBM', 'XGBoost', 'Random Forest'):
+            return 1
+        return -1
+
+    def _tune_hyperparameters(self, pipeline, param_grid: Dict, X_train, y_train, pipeline_name: str = ""):
         """
-        Tune hyperparameters using GridSearchCV
-        
-        Args:
-            pipeline: sklearn Pipeline
-            param_grid: Hyperparameter grid
-            X_train: Training features
-            y_train: Training target
-            
-        Returns:
-            Best estimator
+        Tune hyperparameters by iterating over the grid and logging each combination
+        so progress is visible in Execution Logs (avoids appearing stuck).
         """
         cv_folds = config.get('training.cv_folds', 5)
         scoring = self._get_scoring_metric()
-        # When GPU is enabled, use n_jobs=1 so training runs in one process and uses GPU (not CPU workers)
-        use_gpu = config.get('training.use_gpu', False)
-        n_jobs = 1 if use_gpu else -1
-        
-        grid_search = GridSearchCV(
-            pipeline,
-            param_grid,
-            cv=cv_folds,
-            scoring=scoring,
-            n_jobs=n_jobs,
-            verbose=0
-        )
-        
-        grid_search.fit(X_train, y_train)
-        
-        logger.info(f"    Best parameters: {grid_search.best_params_}")
-        logger.info(f"    Best CV score: {grid_search.best_score_:.4f}")
-        
-        return grid_search.best_estimator_
+        n_jobs = self._safe_n_jobs_for_cv(pipeline_name)
+        param_list = list(ParameterGrid(param_grid))
+        n_combinations = len(param_list)
+        if n_combinations == 0:
+            pipeline.fit(X_train, y_train)
+            return pipeline
+        total_fits = n_combinations * cv_folds
+        logger.info(f"    Grid search: {cv_folds} folds × {n_combinations} candidates = {total_fits} fits")
+        best_score = -np.inf
+        best_params = None
+        best_estimator = None
+        for i, params in enumerate(param_list):
+            logger.info(f"    [{i+1}/{n_combinations}] Testing {params}...")
+            candidate = clone(pipeline)
+            candidate.set_params(**params)
+            scores = cross_val_score(
+                candidate, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=n_jobs
+            )
+            mean_score = float(np.mean(scores))
+            std_score = float(np.std(scores))
+            logger.info(f"        -> CV score: {mean_score:.4f} (+/- {std_score:.4f})")
+            if mean_score > best_score:
+                best_score = mean_score
+                best_params = params
+                best_estimator = candidate
+        logger.info(f"    Best parameters: {best_params}")
+        logger.info(f"    Best CV score: {best_score:.4f}")
+        best_estimator.fit(X_train, y_train)
+        return best_estimator
     
     def _get_scoring_metric(self) -> str:
         """Get appropriate scoring metric for the task"""
