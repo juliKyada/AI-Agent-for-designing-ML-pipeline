@@ -131,7 +131,11 @@ class PipelineGenerator:
             # No features to transform
             return None
         
-        preprocessor = ColumnTransformer(transformers=transformers)
+        # Create preprocessor with get_feature_names_out for proper feature naming
+        preprocessor = ColumnTransformer(
+            transformers=transformers,
+            verbose_feature_names_out=True
+        )
         return preprocessor
     
     def _get_classification_models(self) -> List[Dict]:

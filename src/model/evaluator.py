@@ -98,7 +98,21 @@ class ModelEvaluator:
         
         # Determine if binary or multiclass
         n_classes = len(np.unique(y_train))
-        average = 'binary' if n_classes == 2 else 'weighted'
+
+        # Use binary averaging only for standard numeric labels where
+        # sklearn's default pos_label=1 is valid; otherwise fall back to
+        # weighted averaging which works for arbitrary labels (e.g. 'Y'/'N').
+        unique_labels = np.unique(y_train)
+        numeric_labels = np.issubdtype(unique_labels.dtype, np.number)
+
+        if n_classes == 2 and numeric_labels:
+            sorted_labels = np.sort(unique_labels)
+            if np.array_equal(sorted_labels, np.array([0, 1])) or np.array_equal(sorted_labels, np.array([-1, 1])):
+                average = 'binary'
+            else:
+                average = 'weighted'
+        else:
+            average = 'weighted'
         
         metrics = {
             'train_accuracy': accuracy_score(y_train, y_train_pred),

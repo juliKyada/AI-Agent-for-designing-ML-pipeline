@@ -6,6 +6,7 @@ MetaFlow is an intelligent AI agent that automatically designs, optimizes, and e
 
 - **Automatic Task Detection**: Identifies whether your problem is classification or regression
 - **Metadata Extraction**: Analyzes dataset characteristics automatically
+- **Intelligent Data Preprocessing**: Automatically handles missing values with smart imputation
 - **Pipeline Generation**: Creates multiple candidate ML pipelines
 - **Smart Training**: Trains models with optimal hyperparameters
 - **Performance Evaluation**: Comprehensive metrics and validation

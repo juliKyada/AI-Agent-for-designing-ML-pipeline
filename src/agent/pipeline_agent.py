@@ -41,11 +41,12 @@ class PipelineAgent:
         self.pipeline_optimizer = None
         
         self.results = {}
-    
+
     def run(self, dataset_path: Union[str, Path] = None, 
             dataframe: pd.DataFrame = None,
             target_column: str = None,
-            max_iterations: int = None) -> Dict[str, Any]:
+            max_iterations: int = None,
+            n_pipelines: int = None) -> Dict[str, Any]:
         """
         Run the complete automated pipeline design process
         
@@ -54,6 +55,7 @@ class PipelineAgent:
             dataframe: Pandas DataFrame (alternative to dataset_path)
             target_column: Name of target column
             max_iterations: Maximum optimization iterations (overrides config)
+            n_pipelines: Number of candidate pipelines to generate (overrides config)
             
         Returns:
             Dictionary with final results including best pipeline and explanations
@@ -71,7 +73,7 @@ class PipelineAgent:
             self._detect_task()
             
             # Step 4: Generate Candidate Pipelines
-            self._generate_pipelines()
+            self._generate_pipelines(n_pipelines=n_pipelines)
             
             # Step 5: Train Models
             self._train_models()
@@ -93,6 +95,7 @@ class PipelineAgent:
                 'success': True,
                 'task_type': self.task_type.value,
                 'metadata': self.metadata,
+                'preprocessing': self.model_trainer.get_preprocessing_report(),
                 'best_pipeline': {
                     'name': best_pipeline['pipeline_name'],
                     'model': best_pipeline['trained_model_result']['trained_model'],
@@ -153,14 +156,14 @@ class PipelineAgent:
         logger.info(f"  Confidence: {confidence:.2%}")
         logger.info(f"  Reason: {reason}")
     
-    def _generate_pipelines(self):
+    def _generate_pipelines(self, n_pipelines: int = None):
         """Step 4: Generate candidate pipelines"""
         logger.info("")
         logger.info("STEP 4: Generating Candidate Pipelines")
         logger.info("-" * 80)
         
         self.pipeline_generator = PipelineGenerator()
-        self.pipelines = self.pipeline_generator.generate(self.task_type, self.metadata)
+        self.pipelines = self.pipeline_generator.generate(self.task_type, self.metadata, n_pipelines=n_pipelines)
         logger.info(f"✓ Generated {len(self.pipelines)} candidate pipelines")
     
     def _train_models(self):

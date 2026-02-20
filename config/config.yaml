@@ -18,6 +18,12 @@ data:
   validation_size: 0.1
   max_missing_ratio: 0.5  # Drop columns with > 50% missing values
   categorical_threshold: 10  # Columns with < 10 unique values treated as categorical
+  imputation_strategy: 'auto'  # Strategy: 'auto', 'mean', 'median', 'mode', 'drop'
+  # 'auto': median for numeric, mode for categorical
+  # 'mean': mean for numeric features
+  # 'median': median for numeric features
+  # 'mode': most frequent value
+  # 'drop': drop rows with missing values
   
 # Task Detection
 detection:

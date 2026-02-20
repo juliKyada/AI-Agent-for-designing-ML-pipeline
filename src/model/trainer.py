@@ -3,11 +3,16 @@ Model trainer for training ML pipelines
 """
 import numpy as np
 import pandas as pd
+import warnings
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from typing import Dict, List, Any, Tuple
 from src.detection.task_detector import TaskType
 from src.utils.logger import get_logger
 from src.utils.config import get_config
+from src.data.preprocessor import DataPreprocessor
+
+# Suppress sklearn feature name warnings (not an error, just informational)
+warnings.filterwarnings('ignore', message='.*does not have valid feature names.*')
 
 logger = get_logger()
 config = get_config()
@@ -25,11 +30,15 @@ class ModelTrainer:
         """
         self.task_type = task_type
         self.trained_models = []
+        self.preprocessor = DataPreprocessor(
+            missing_threshold=config.get('data.max_missing_ratio', 0.5),
+            imputation_strategy=config.get('data.imputation_strategy', 'auto')
+        )
     
     def train_pipeline(self, pipeline_dict: Dict, X: pd.DataFrame, y: pd.Series,
                       tune_hyperparameters: bool = True) -> Dict:
         """
-        Train a single pipeline
+        Train a single pipeline (with preprocessing if not already done)
         
         Args:
             pipeline_dict: Pipeline configuration dictionary
@@ -42,27 +51,92 @@ class ModelTrainer:
         """
         logger.info(f"Training pipeline: {pipeline_dict['name']}")
         
+        # Preprocess data if not already done (for standalone usage)
+        logger.info("  Preprocessing data - handling missing values...")
+        X_processed, y_processed = self.preprocessor.fit(X, y)
+        
+        logger.info(f"  Data shape after preprocessing: {X_processed.shape}")
+        logger.info(f"  Remaining samples: {len(X_processed)}")
+        
+        return self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
+    
+    def train_all_pipelines(self, pipelines: List[Dict], X: pd.DataFrame, y: pd.Series) -> List[Dict]:
+        """
+        Train all pipelines
+        
+        Args:
+            pipelines: List of pipeline configurations
+            X: Features DataFrame
+            y: Target Series
+            
+        Returns:
+            List of training results for all pipelines
+        """
+        logger.info(f"Training {len(pipelines)} pipelines...")
+        
+        # Preprocess data once for all pipelines (ensures consistency)
+        logger.info("Preprocessing data once for all pipelines...")
+        X_processed, y_processed = self.preprocessor.fit(X, y)
+        logger.info(f"Data preprocessed: {X_processed.shape[0]} samples, {X_processed.shape[1]} features")
+        
+        self.trained_models = []
+        
+        for i, pipeline_dict in enumerate(pipelines):
+            logger.info(f"Pipeline {i+1}/{len(pipelines)}")
+            try:
+                result = self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
+            except Exception as e:
+                logger.error(f"Error training {pipeline_dict['name']}: {str(e)}")
+                continue
+        
+        logger.info(f"Successfully trained {len(self.trained_models)} pipelines")
+        return self.trained_models
+    
+    def _train_single_pipeline(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series) -> Dict:
+        """
+        Train a single pipeline with already-preprocessed data
+        
+        Args:
+            pipeline_dict: Pipeline configuration dictionary
+            X_processed: Preprocessed features DataFrame
+            y_processed: Preprocessed target Series
+            
+        Returns:
+            Dictionary with training results
+        """
+        logger.info(f"Training pipeline: {pipeline_dict['name']}")
+        
         pipeline = pipeline_dict['pipeline']
         
-        # Split data
+        # Ensure X_processed is a DataFrame (preserve column names)
+        if not isinstance(X_processed, pd.DataFrame):
+            logger.warning("X_processed is not a DataFrame, converting...")
+            X_processed = pd.DataFrame(X_processed)
+        
+        # Split data (train_test_split preserves DataFrames)
         test_size = config.get('data.test_size', 0.2)
         random_seed = config.get('random_seed', 42)
         
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=random_seed, stratify=y if self._is_classification() else None
+            X_processed, y_processed, test_size=test_size, random_state=random_seed, stratify=y_processed if self._is_classification() else None
         )
         
+        # Ensure train/test data maintain DataFrame structure for proper feature names
+        X_train = pd.DataFrame(X_train, columns=X_processed.columns) if not isinstance(X_train, pd.DataFrame) else X_train
+        X_test = pd.DataFrame(X_test, columns=X_processed.columns) if not isinstance(X_test, pd.DataFrame) else X_test
+        
         logger.info(f"  Train size: {len(X_train)}, Test size: {len(X_test)}")
+        logger.info(f"  Features: {list(X_train.columns)}")
         
         # Hyperparameter tuning
-        if tune_hyperparameters and pipeline_dict['hyperparameters']:
+        if pipeline_dict['hyperparameters']:
             logger.info("  Performing hyperparameter tuning...")
             pipeline = self._tune_hyperparameters(pipeline, pipeline_dict['hyperparameters'], X_train, y_train)
         else:
             logger.info("  Training with default parameters...")
             pipeline.fit(X_train, y_train)
         
-        # Get predictions
+        # Get predictions (ensure X_train and X_test are DataFrames)
         y_train_pred = pipeline.predict(X_train)
         y_test_pred = pipeline.predict(X_test)
         
@@ -94,33 +168,6 @@ class ModelTrainer:
         
         self.trained_models.append(result)
         return result
-    
-    def train_all_pipelines(self, pipelines: List[Dict], X: pd.DataFrame, y: pd.Series) -> List[Dict]:
-        """
-        Train all pipelines
-        
-        Args:
-            pipelines: List of pipeline configurations
-            X: Features DataFrame
-            y: Target Series
-            
-        Returns:
-            List of training results for all pipelines
-        """
-        logger.info(f"Training {len(pipelines)} pipelines...")
-        
-        self.trained_models = []
-        
-        for i, pipeline_dict in enumerate(pipelines):
-            logger.info(f"Pipeline {i+1}/{len(pipelines)}")
-            try:
-                result = self.train_pipeline(pipeline_dict, X, y)
-            except Exception as e:
-                logger.error(f"Error training {pipeline_dict['name']}: {str(e)}")
-                continue
-        
-        logger.info(f"Successfully trained {len(self.trained_models)} pipelines")
-        return self.trained_models
     
     def _tune_hyperparameters(self, pipeline, param_grid: Dict, X_train, y_train):
         """
@@ -168,3 +215,13 @@ class ModelTrainer:
     def get_trained_models(self) -> List[Dict]:
         """Get all trained models"""
         return self.trained_models
+    
+    def get_preprocessing_report(self) -> Dict:
+        """Get preprocessing report from last training"""
+        if self.preprocessor:
+            return {
+                'removed_features': self.preprocessor.dropped_features,
+                'imputation_values': self.preprocessor.imputation_values,
+                'imputation_strategy': self.preprocessor.imputation_strategy,
+            }
+        return {}

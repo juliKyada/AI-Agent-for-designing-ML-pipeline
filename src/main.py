@@ -29,7 +29,7 @@ class MetaFlowAgent:
         """Initialize MetaFlow Agent"""
         self.agent = PipelineAgent()
     
-    def run(self, dataset_path=None, dataframe=None, target_column=None, max_iterations=None):
+    def run(self, dataset_path=None, dataframe=None, target_column=None, max_iterations=None, n_pipelines=None):
         """
         Run automated ML pipeline design
         
@@ -38,6 +38,7 @@ class MetaFlowAgent:
             dataframe: Pandas DataFrame (alternative to dataset_path)
             target_column: Name of target column
             max_iterations: Maximum optimization iterations
+            n_pipelines: Number of candidate pipelines to generate (overrides config)
             
         Returns:
             Dictionary with results including best pipeline and explanation
@@ -46,7 +47,8 @@ class MetaFlowAgent:
             dataset_path=dataset_path,
             dataframe=dataframe,
             target_column=target_column,
-            max_iterations=max_iterations
+            max_iterations=max_iterations,
+            n_pipelines=n_pipelines
         )
     
     def get_results(self):

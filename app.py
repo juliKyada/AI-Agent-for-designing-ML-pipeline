@@ -141,7 +141,7 @@ def main():
             run_button = st.button("🚀 Run MetaFlow", type="primary", use_container_width=True)
             
             if run_button:
-                run_metaflow(df, target_column, max_iterations)
+                run_metaflow(df, target_column, max_iterations, n_pipelines)
     
     # Main content
     if st.session_state.dataset is None:
@@ -273,7 +273,7 @@ def show_dataset_overview():
     with st.expander("📈 Statistics", expanded=False):
         st.dataframe(df.describe(), use_container_width=True)
 
-def run_metaflow(df, target_column, max_iterations):
+def run_metaflow(df, target_column, max_iterations, n_pipelines):
     """Run MetaFlow on the dataset"""
     
     # Create necessary directories
@@ -298,7 +298,8 @@ def run_metaflow(df, target_column, max_iterations):
             results = agent.run(
                 dataframe=df,
                 target_column=target_column,
-                max_iterations=max_iterations
+                max_iterations=max_iterations,
+                n_pipelines=n_pipelines
             )
             
             # Store results
@@ -543,6 +544,44 @@ def show_full_report_tab(results):
     
     # Show explanation
     st.markdown(results['explanation'])
+    
+    # Show preprocessing information
+    if 'preprocessing' in results and results['preprocessing']:
+        st.markdown("---")
+        st.markdown("### 🔧 Data Preprocessing Report")
+        
+        preprocessing = results['preprocessing']
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Imputation Strategy", preprocessing.get('imputation_strategy', 'N/A'))
+        
+        with col2:
+            removed_features = len(preprocessing.get('removed_features', []))
+            st.metric("Features Removed", removed_features)
+        
+        with col3:
+            imputed_features = len(preprocessing.get('imputation_values', {}))
+            st.metric("Features Imputed", imputed_features)
+        
+        with col4:
+            rows_removed = preprocessing.get('rows_removed_by_target_na', 0)
+            st.metric("Rows Removed (NaN Target)", rows_removed)
+        
+        # Show removed features
+        if preprocessing.get('removed_features'):
+            st.markdown("#### Removed Features (High Missing Ratio)")
+            st.write(", ".join(preprocessing['removed_features']))
+        
+        # Show imputation values
+        if preprocessing.get('imputation_values'):
+            st.markdown("#### Imputation Values Used")
+            imputation_df = pd.DataFrame({
+                'Feature': list(preprocessing['imputation_values'].keys()),
+                'Value': list(preprocessing['imputation_values'].values())
+            })
+            st.dataframe(imputation_df, use_container_width=True)
     
     # Show full report in expandable section
     with st.expander("📊 Detailed Technical Report", expanded=False):
