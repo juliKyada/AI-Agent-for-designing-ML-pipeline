@@ -51,6 +51,13 @@ thresholds:
     classification: 0.70  # Minimum acceptable accuracy/f1
     regression: 0.60  # Minimum acceptable R²
   overfitting_threshold: 0.10  # Max gap between train and validation score
+
+# LLM Settings (Groq)
+llm:
+  provider: "groq"
+  model: "llama-3.3-70b-versatile"
+  temperature: 0.1
+  use_llm: true  # Whether to use LLM for decision making
   
 # Model Search Space
 models:

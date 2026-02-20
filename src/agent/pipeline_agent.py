@@ -2,12 +2,14 @@
 AI Agent for orchestrating the entire ML pipeline automation process
 """
 import pandas as pd
+import json
 from pathlib import Path
-from typing import Union, Optional, Dict, Any
+from typing import Union, Optional, Dict, Any, List
 from src.data import DataLoader, MetadataExtractor
 from src.detection import TaskDetector, TaskType
 from src.pipeline import PipelineGenerator, PipelineOptimizer
 from src.model import ModelTrainer, ModelEvaluator
+from src.agent.llm_client import LLMClient
 from src.utils import get_logger, get_config, setup_logger
 
 logger = get_logger()
@@ -29,6 +31,7 @@ class PipelineAgent:
         self.data_loader = DataLoader()
         self.metadata_extractor = MetadataExtractor()
         self.task_detector = TaskDetector()
+        self.llm_client = LLMClient()
         
         self.X = None
         self.y = None
@@ -149,9 +152,44 @@ class PipelineAgent:
         logger.info("-" * 80)
         
         self.task_type, confidence, reason = self.task_detector.detect(self.y, self.metadata)
+        
+        # Verify with AI if enabled
+        if config.get('llm.use_llm', False):
+            logger.info("Verifying task type with AI...")
+            ai_task_results = self._get_ai_task_detection(self.metadata)
+            if ai_task_results and 'task_type' in ai_task_results:
+                ai_type = TaskType.CLASSIFICATION if ai_task_results['task_type'].lower() == 'classification' else TaskType.REGRESSION
+                if ai_type != self.task_type:
+                    logger.info(f"AI suggests task type is {ai_type.value} instead of {self.task_type.value}")
+                    self.task_type = ai_type
+                    confidence = ai_task_results.get('confidence', 0.8)
+                    reason = ai_task_results.get('reason', f"AI override to {ai_type.value}")
+        
         logger.info(f"✓ Task detected: {self.task_type.value.upper()}")
         logger.info(f"  Confidence: {confidence:.2%}")
         logger.info(f"  Reason: {reason}")
+
+    def _get_ai_task_detection(self, metadata) -> Dict[str, Any]:
+        """Get AI-powered task detection"""
+        try:
+            prompt = f"""
+            Identify the machine learning task type based on this dataset metadata.
+            Is it classification or regression?
+            
+            METADATA:
+            {json.dumps(metadata, indent=2)}
+            
+            Respond only with a JSON object:
+            {{
+              "task_type": "classification" or "regression",
+              "confidence": float between 0 and 1,
+              "reason": "brief explanation"
+            }}
+            """
+            return self.llm_client.get_json_completion(prompt)
+        except Exception as e:
+            logger.warning(f"Failed to get AI task detection: {e}")
+            return {}
     
     def _generate_pipelines(self):
         """Step 4: Generate candidate pipelines"""
@@ -159,8 +197,17 @@ class PipelineAgent:
         logger.info("STEP 4: Generating Candidate Pipelines")
         logger.info("-" * 80)
         
+        custom_models = None
+        if config.get('llm.use_llm', False):
+            logger.info("Requesting pipeline suggestions from Groq...")
+            custom_models = self.llm_client.suggest_pipelines(self.metadata, self.task_type.value)
+            if custom_models:
+                logger.info(f"✓ Received {len(custom_models)} suggestions from AI")
+            else:
+                logger.warning("AI suggested no models, falling back to default rules")
+        
         self.pipeline_generator = PipelineGenerator()
-        self.pipelines = self.pipeline_generator.generate(self.task_type, self.metadata)
+        self.pipelines = self.pipeline_generator.generate(self.task_type, self.metadata, custom_models=custom_models)
         logger.info(f"✓ Generated {len(self.pipelines)} candidate pipelines")
     
     def _train_models(self):
@@ -192,12 +239,42 @@ class PipelineAgent:
         self.pipeline_optimizer = PipelineOptimizer(self.task_type)
         improvement_plan = self.pipeline_optimizer.generate_improvement_plan(self.evaluations)
         
+        if config.get('llm.use_llm', False):
+            logger.info("Consulting AI for advanced improvement strategies...")
+            ai_recommendations = self._get_ai_improvement_recommendations(improvement_plan)
+            if ai_recommendations:
+                improvement_plan['overall_recommendations'] = ai_recommendations
+        
         if improvement_plan['needs_improvement']:
             logger.info(f"✓ Improvement plan generated for {len(improvement_plan['pipelines_to_improve'])} pipelines")
         else:
             logger.info("✓ All pipelines performing well - no improvements needed")
         
         return improvement_plan
+
+    def _get_ai_improvement_recommendations(self, improvement_plan) -> List[str]:
+        """Get AI-powered improvement recommendations"""
+        try:
+            prompt = f"""
+            Given the following ML pipeline evaluation results and issues, suggest 3-5 specific improvement actions.
+            
+            EVALUATIONS SUMMARY:
+            {json.dumps([{ 'name': e['pipeline_name'], 'metrics': e['metrics'], 'issues': e['issues'] } for e in self.evaluations], indent=2)}
+            
+            IMPROVEMENT PLAN:
+            {json.dumps(improvement_plan, indent=2)}
+            
+            Please provide a list of specific, actionable steps to improve the performance of these pipelines.
+            Respond only with a JSON list of strings.
+            """
+            
+            response = self.llm_client.get_json_completion(prompt)
+            if isinstance(response, list):
+                return response
+            return []
+        except Exception as e:
+            logger.warning(f"Failed to get AI improvement recommendations: {e}")
+            return []
     
     def _get_best_pipeline(self):
         """Step 8: Get the best pipeline"""
@@ -217,9 +294,43 @@ class PipelineAgent:
         logger.info("-" * 80)
         
         explanation = self._create_detailed_explanation(best_pipeline, improvement_plan)
+        
+        if config.get('llm.use_llm', False):
+            logger.info("Enriching report with AI commentary...")
+            ai_commentary = self._get_ai_commentary(best_pipeline, improvement_plan)
+            if ai_commentary:
+                explanation = explanation + "\n\n" + ai_commentary
+        
         logger.info("✓ Explanation generated")
         
         return explanation
+
+    def _get_ai_commentary(self, best_pipeline, improvement_plan) -> Optional[str]:
+        """Get AI-powered commentary on the results"""
+        try:
+            prompt = f"""
+            As an expert Data Scientist, review the results of an automated ML pipeline design process.
+            
+            TASK TYPE: {self.task_type.value}
+            ESTABLISHED BEST PIPELINE: {best_pipeline['pipeline_name']}
+            METRICS: {json.dumps(best_pipeline['metrics'], indent=2)}
+            DETECTED ISSUES: {json.dumps(best_pipeline['issues'], indent=2)}
+            IMPROVEMENT PLAN: {json.dumps(improvement_plan, indent=2)}
+            
+            Please provide:
+            1. An executive summary of why this pipeline was selected.
+            2. Deeper insights into the performance (e.g., overfitting analysis, trade-offs).
+            3. Advanced recommendations for further manual improvement.
+            4. Real-world considerations for deploying this specific model.
+            
+            Structure the output with clear headers and professional formatting.
+            """
+            
+            commentary = self.llm_client.get_completion(prompt)
+            return f"### 🤖 AI Agent Analysis & Recommendations\n\n{commentary}"
+        except Exception as e:
+            logger.warning(f"Failed to get AI commentary: {e}")
+            return None
     
     def _create_detailed_explanation(self, best_pipeline, improvement_plan) -> str:
         """Create a detailed explanation of the results"""

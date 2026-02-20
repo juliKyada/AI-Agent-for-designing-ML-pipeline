@@ -43,7 +43,7 @@ class PipelineGenerator:
         self.pipelines = []
         self.preprocessors = []
     
-    def generate(self, task_type: TaskType, metadata: Dict[str, Any], n_pipelines: int = None) -> List[Dict]:
+    def generate(self, task_type: TaskType, metadata: Dict[str, Any], n_pipelines: int = None, custom_models: List[Dict] = None) -> List[Dict]:
         """
         Generate candidate pipelines
         
@@ -51,6 +51,7 @@ class PipelineGenerator:
             task_type: Type of ML task (classification or regression)
             metadata: Dataset metadata from MetadataExtractor
             n_pipelines: Number of pipelines to generate (default from config)
+            custom_models: Optional list of model suggestions (from LLM)
             
         Returns:
             List of pipeline configurations
@@ -68,7 +69,9 @@ class PipelineGenerator:
         preprocessor = self._create_preprocessor(numerical_features, categorical_features)
         
         # Get model configurations
-        if task_type == TaskType.CLASSIFICATION:
+        if custom_models:
+            model_configs = self._resolve_custom_models(custom_models, task_type)
+        elif task_type == TaskType.CLASSIFICATION:
             model_configs = self._get_classification_models()
         else:
             model_configs = self._get_regression_models()
@@ -251,3 +254,54 @@ class PipelineGenerator:
     def get_pipelines(self) -> List[Dict]:
         """Get generated pipelines"""
         return self.pipelines
+
+    def _resolve_custom_models(self, custom_models: List[Dict], task_type: TaskType) -> List[Dict]:
+        """Resolve LLM model suggestions to actual model objects"""
+        resolved_configs = []
+        
+        # Mapping of model names to classes
+        model_map = {
+            'LogisticRegression': LogisticRegression,
+            'RandomForestClassifier': RandomForestClassifier,
+            'XGBClassifier': XGBClassifier,
+            'LGBMClassifier': LGBMClassifier,
+            'DecisionTreeClassifier': DecisionTreeClassifier,
+            'SVC': SVC,
+            'LinearRegression': LinearRegression,
+            'Ridge': Ridge,
+            'Lasso': Lasso,
+            'RandomForestRegressor': RandomForestRegressor,
+            'XGBRegressor': XGBRegressor,
+            'LGBMRegressor': LGBMRegressor,
+            'DecisionTreeRegressor': DecisionTreeRegressor,
+            'SVR': SVR
+        }
+        
+        for model_data in custom_models:
+            name = model_data.get('name', 'AI Suggested Model')
+            model_type_str = model_data.get('model_type')
+            
+            if model_type_str in model_map:
+                model_class = model_map[model_type_str]
+                
+                # Add default random state if possible
+                try:
+                    model_instance = model_class(random_state=config.get('random_seed', 42))
+                except TypeError:
+                    # Some models (like LinearRegression) don't have random_state
+                    model_instance = model_class()
+                
+                # Prefix hyperparams with 'model__'
+                hyperparams = model_data.get('hyperparameters', {})
+                prefixed_hyperparams = {f"model__{k}": v for k, v in hyperparams.items()}
+                
+                resolved_configs.append({
+                    'name': name,
+                    'model': model_instance,
+                    'hyperparameters': prefixed_hyperparams,
+                    'description': model_data.get('rationale', 'Suggested by AI')
+                })
+            else:
+                logger.warning(f"Could not resolve model type: {model_type_str}")
+                
+        return resolved_configs

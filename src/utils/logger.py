@@ -9,6 +9,10 @@ from src.utils.config import get_config
 
 def setup_logger():
     """Configure logger based on config settings"""
+    # Use an attribute on the function to track if it has been initialized
+    if getattr(setup_logger, "_initialized", False):
+        return logger
+        
     config = get_config()
     
     # Remove default handler
@@ -43,7 +47,17 @@ def setup_logger():
             compression="zip"
         )
     
+    setup_logger._initialized = True
     return logger
+
+
+def add_streamlit_sink(callback):
+    """Add a callback sink for Streamlit to capture logs"""
+    return logger.add(
+        callback,
+        format="{message}",
+        level="INFO"
+    )
 
 
 def get_logger():

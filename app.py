@@ -14,6 +14,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from src.main import MetaFlowAgent
+from src.utils.logger import add_streamlit_sink
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -70,6 +71,12 @@ if 'results' not in st.session_state:
     st.session_state.results = None
 if 'dataset' not in st.session_state:
     st.session_state.dataset = None
+if 'execution_logs' not in st.session_state:
+    st.session_state.execution_logs = []
+if 'trigger_run' not in st.session_state:
+    st.session_state.trigger_run = False
+if 'run_params' not in st.session_state:
+    st.session_state.run_params = {}
 
 def main():
     """Main application"""
@@ -141,7 +148,12 @@ def main():
             run_button = st.button("🚀 Run MetaFlow", type="primary", use_container_width=True)
             
             if run_button:
-                run_metaflow(df, target_column, max_iterations)
+                st.session_state.trigger_run = True
+                st.session_state.run_params = {
+                    'target_column': target_column,
+                    'max_iterations': max_iterations
+                }
+                st.rerun()
     
     # Main content
     if st.session_state.dataset is None:
@@ -251,23 +263,41 @@ def show_dataset_overview():
     """Show dataset overview"""
     df = st.session_state.dataset
     
-    st.markdown("## 📊 Dataset Overview")
+    col_left, col_right = st.columns([0.7, 0.3])
     
-    col1, col2, col3, col4 = st.columns(4)
+    with col_left:
+        st.markdown("## 📊 Dataset Overview")
+        
+        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+        
+        with m_col1:
+            st.metric("Rows", f"{len(df):,}")
+        with m_col2:
+            st.metric("Columns", len(df.columns))
+        with m_col3:
+            st.metric("Missing Values", df.isnull().sum().sum())
+        with m_col4:
+            memory_mb = df.memory_usage(deep=True).sum() / 1024**2
+            st.metric("Memory", f"{memory_mb:.2f} MB")
+        
+        # Show data
+        with st.expander("👁️ View Data", expanded=False):
+            st.dataframe(df.head(100), use_container_width=True)
     
-    with col1:
-        st.metric("Rows", f"{len(df):,}")
-    with col2:
-        st.metric("Columns", len(df.columns))
-    with col3:
-        st.metric("Missing Values", df.isnull().sum().sum())
-    with col4:
-        memory_mb = df.memory_usage(deep=True).sum() / 1024**2
-        st.metric("Memory", f"{memory_mb:.2f} MB")
-    
-    # Show data
-    with st.expander("👁️ View Data", expanded=False):
-        st.dataframe(df.head(100), use_container_width=True)
+    with col_right:
+        if st.session_state.get('trigger_run', False):
+            # Process trigger
+            params = st.session_state.run_params
+            st.session_state.trigger_run = False 
+            st.markdown("### 🪵 Activity")
+            run_metaflow(df, params['target_column'], params['max_iterations'])
+        elif st.session_state.execution_logs:
+            st.markdown("### 🪵 Latest Activity")
+            latest_log = st.session_state.execution_logs[-5:]
+            st.code("\n".join(latest_log), language="text")
+        else:
+            st.markdown("### 🪵 Activity")
+            st.info("Start a run to see logs here.")
     
     # Show statistics
     with st.expander("📈 Statistics", expanded=False):
@@ -281,9 +311,23 @@ def run_metaflow(df, target_column, max_iterations):
     os.makedirs('models', exist_ok=True)
     os.makedirs('logs', exist_ok=True)
     
-    # Progress
-    progress_placeholder = st.empty()
+    # Clear previous results but KEEP logs (until new ones start)
+    st.session_state.results = None
+    st.session_state.execution_logs = []
+    
+    # Progress and Logs
     status_placeholder = st.empty()
+    log_placeholder = st.empty()
+    
+    def streamlit_log_callback(message):
+        # Extract the plain message
+        msg = str(message).strip()
+        st.session_state.execution_logs.append(msg)
+        # Live update during execution - show last 10 lines in right column
+        log_placeholder.code("\n".join(st.session_state.execution_logs[-10:]))
+
+    # Add the sink
+    sink_id = add_streamlit_sink(streamlit_log_callback)
     
     with st.spinner("🤖 MetaFlow is working..."):
         try:
@@ -293,7 +337,6 @@ def run_metaflow(df, target_column, max_iterations):
             
             # Run pipeline
             status_placeholder.info("🔄 Analyzing dataset and designing pipelines...")
-            time.sleep(0.5)
             
             results = agent.run(
                 dataframe=df,
@@ -306,13 +349,23 @@ def run_metaflow(df, target_column, max_iterations):
             
             status_placeholder.success("✅ MetaFlow completed successfully!")
             time.sleep(1)
-            status_placeholder.empty()
-            progress_placeholder.empty()
+            
+            # Cleanup sink before rerun
+            try:
+                from loguru import logger
+                logger.remove(sink_id)
+            except ValueError:
+                pass
             
             # Rerun to show results
             st.rerun()
             
         except Exception as e:
+            try:
+                from loguru import logger
+                logger.remove(sink_id)
+            except ValueError:
+                pass
             status_placeholder.error(f"❌ Error: {str(e)}")
             st.error(f"Error details: {str(e)}")
             import traceback
@@ -351,7 +404,13 @@ def show_results():
         st.markdown(f"**{score:.4f}**")
     
     # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Performance", "📈 All Pipelines", "⚠️ Issues & Recommendations", "📄 Full Report"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 Performance", 
+        "📈 All Pipelines", 
+        "⚠️ Issues & Recommendations", 
+        "📄 Full Report",
+        "🪵 Execution Logs"
+    ])
     
     with tab1:
         show_performance_tab(results)
@@ -364,6 +423,13 @@ def show_results():
     
     with tab4:
         show_full_report_tab(results)
+        
+    with tab5:
+        st.markdown("### 🪵 System Execution Logs")
+        if st.session_state.execution_logs:
+            st.code("\n".join(st.session_state.execution_logs), language="text")
+        else:
+            st.info("No logs available for this session.")
     
     # Download section
     st.markdown("---")

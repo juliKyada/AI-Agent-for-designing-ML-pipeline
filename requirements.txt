@@ -20,6 +20,7 @@ streamlit>=1.28.0
 # Configuration
 pyyaml>=6.0
 python-dotenv>=1.0.0
+groq>=0.4.0
 
 # Logging and Monitoring
 loguru>=0.7.0
