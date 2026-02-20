@@ -145,7 +145,9 @@ class ModelTrainer:
         scoring = self._get_scoring_metric()
         
         logger.info(f"  Computing {cv_folds}-fold cross-validation score...")
-        cv_scores = cross_val_score(pipeline, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=-1)
+        use_gpu = config.get('training.use_gpu', False)
+        cv_n_jobs = 1 if use_gpu else -1
+        cv_scores = cross_val_score(pipeline, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=cv_n_jobs)
         
         result = {
             'pipeline_id': pipeline_dict['id'],
@@ -184,13 +186,16 @@ class ModelTrainer:
         """
         cv_folds = config.get('training.cv_folds', 5)
         scoring = self._get_scoring_metric()
+        # When GPU is enabled, use n_jobs=1 so training runs in one process and uses GPU (not CPU workers)
+        use_gpu = config.get('training.use_gpu', False)
+        n_jobs = 1 if use_gpu else -1
         
         grid_search = GridSearchCV(
             pipeline,
             param_grid,
             cv=cv_folds,
             scoring=scoring,
-            n_jobs=-1,
+            n_jobs=n_jobs,
             verbose=0
         )
         

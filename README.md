@@ -124,6 +124,114 @@ Edit `config/config.yaml` to customize:
 - Model search space
 - Performance thresholds
 
+## 🖥️ Running on GPU
+
+XGBoost and LightGBM can use the GPU for faster training. Other models (scikit-learn) run on CPU.
+
+### 1. Prerequisites
+
+- **NVIDIA GPU** with CUDA support (Compute Capability 5.0+)
+- **CUDA Toolkit** (e.g. CUDA 11 or 12) and matching **cuDNN** installed
+- **Python** with GPU-enabled XGBoost and LightGBM
+
+### 2. Install GPU-enabled packages
+
+**XGBoost (GPU):** Install from pip (binary often includes CUDA support), or build from source with CUDA:
+
+```bash
+pip install xgboost  # Many wheels include GPU support
+# If not, install CUDA then: pip install xgboost --config-settings=cmake.define.USE_CUDA=ON
+```
+
+**LightGBM (GPU):** Build with CUDA or use a pre-built GPU wheel if available:
+
+```bash
+pip install lightgbm  # Check for lightgbm-gpu or build with --cuda
+# From source: https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html#build-cuda-version
+```
+
+### 3. Enable GPU in MetaFlow
+
+In `config/config.yaml`, under **training**, set:
+
+```yaml
+training:
+  use_gpu: true
+  device: "cuda"   # or "cuda:0", "cuda:1" for a specific GPU
+```
+
+Then run the app or your pipeline as usual. Execution Logs will show `GPU enabled for XGBoost and LightGBM` when active.
+
+**Note:** If GPU is not available, training may fail for XGBoost/LightGBM; set `use_gpu: false` to use CPU.
+
+## 🚀 Deploy on Hugging Face Spaces
+
+You can run MetaFlow in the cloud for free using [Hugging Face Spaces](https://huggingface.co/spaces) (Streamlit).
+
+### Option A: Deploy via the website
+
+1. **Create a Space**
+   - Go to [huggingface.co/spaces](https://huggingface.co/spaces) and click **Create new Space**.
+   - Choose **Streamlit** as the SDK.
+   - Pick a name (e.g. `metaflow-ml-pipeline`) and create the Space.
+
+2. **Upload your project**
+   - Clone the Space repo (e.g. `git clone https://huggingface.co/spaces/YOUR_USERNAME/metaflow-ml-pipeline`).
+   - Copy into the repo:
+     - `app.py` (at the root)
+     - `src/` (entire folder)
+     - `config/` (entire folder)
+     - `requirements-huggingface.txt` → rename or copy as **`requirements.txt`** in the Space root.
+   - Commit and push:
+     ```bash
+     cd metaflow-ml-pipeline
+     git add app.py src config requirements.txt
+     git commit -m "Add MetaFlow app"
+     git push
+     ```
+   - The Space will build and run your app.
+
+3. **Or use “Upload files”**
+   - In the Space page, use **Files → Upload files** and add `app.py`, then upload the `src` and `config` folders and a `requirements.txt` (from `requirements-huggingface.txt`).
+
+### Option B: Deploy from your repo (Git-based)
+
+1. Create a new Space and choose **Streamlit**.
+2. In Space **Settings → Repository**, you can connect a GitHub repo or copy files from this repo so that the Space root contains:
+   - `app.py`
+   - `src/`
+   - `config/`
+   - `requirements.txt` (use `requirements-huggingface.txt` as contents).
+
+### Can the free CPU handle model training?
+
+**Short answer: only for light workloads.** Free Spaces have limited resources:
+
+| Free tier (CPU Basic) | Limit |
+|----------------------|--------|
+| CPU                  | 2 vCPU cores |
+| RAM                  | 16 GB        |
+| Disk                 | 50 GB (non-persistent) |
+
+- **Small datasets (e.g. &lt; 10k rows, &lt; 50 features):** Usually fine. Training 3–5 pipelines with 3–5 fold CV can complete in a few minutes.
+- **Medium/large datasets or many pipelines:** Can be slow, hit RAM limits, or time out. The Space may become unresponsive or restart.
+
+**Recommendations for free-tier deployment:**
+
+1. **Use lighter settings** in the Streamlit UI (or in `config/config.yaml` before deploying):
+   - **Number of candidate pipelines:** 3 (not 5–10).
+   - **Max optimization iterations:** 3–5 (not 10).
+   - **CV folds:** 3 (in `config/config.yaml`: `training.cv_folds: 3`).
+2. **Ask users to upload small/medium datasets** (e.g. &lt; 5k rows for a smooth experience).
+3. **Set `use_gpu: false`** so XGBoost/LightGBM use CPU (free Spaces have no GPU).
+4. For **heavy training or big data**, use a **paid CPU Upgrade** (e.g. 8 vCPU, 32 GB RAM) or run the app on your own server/Colab.
+
+### Other notes for Hugging Face
+
+- **Faster install:** Use `requirements-huggingface.txt` as your Space `requirements.txt` to avoid installing dev/test packages.
+- **File size:** Users upload their own datasets in the UI; you don’t need to bundle data.
+- **Sleep:** Inactive free Spaces sleep after a while; the first load after sleep can be slow.
+
 ## 📝 License
 
 MIT License

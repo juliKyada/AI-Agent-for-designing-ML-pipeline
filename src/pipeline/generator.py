@@ -35,6 +35,28 @@ logger = get_logger()
 config = get_config()
 
 
+def _gpu_kwargs_xgboost():
+    """Return kwargs for XGBoost to use GPU if enabled in config."""
+    if not config.get("training.use_gpu", False):
+        return {}
+    device = config.get("training.device", "cuda")
+    try:
+        return {"device": device, "tree_method": "hist"}
+    except Exception:
+        return {}
+
+
+def _gpu_kwargs_lightgbm():
+    """Return kwargs for LightGBM to use GPU if enabled in config."""
+    if not config.get("training.use_gpu", False):
+        return {}
+    device = config.get("training.device", "cuda")
+    try:
+        return {"device": device}
+    except Exception:
+        return {}
+
+
 class PipelineGenerator:
     """Generates candidate ML pipelines based on task type and data characteristics"""
     
@@ -59,6 +81,9 @@ class PipelineGenerator:
             n_pipelines = config.get('pipeline.n_candidate_pipelines', 5)
         
         logger.info(f"Generating {n_pipelines} candidate pipelines for {task_type.value}")
+        if config.get("training.use_gpu", False):
+            device = config.get("training.device", "cuda")
+            logger.info(f"  GPU enabled for XGBoost and LightGBM (device={device})")
         
         # Get feature information
         numerical_features = metadata['features']['numerical']
@@ -164,7 +189,12 @@ class PipelineGenerator:
             },
             {
                 'name': 'XGBoost',
-                'model': XGBClassifier(random_state=config.get('random_seed', 42), n_jobs=-1, verbosity=0),
+                'model': XGBClassifier(
+                    random_state=config.get('random_seed', 42),
+                    n_jobs=-1,
+                    verbosity=0,
+                    **_gpu_kwargs_xgboost(),
+                ),
                 'hyperparameters': {
                     'model__n_estimators': [100, 200],
                     'model__max_depth': [3, 5, 7],
@@ -175,7 +205,12 @@ class PipelineGenerator:
             },
             {
                 'name': 'LightGBM',
-                'model': LGBMClassifier(random_state=config.get('random_seed', 42), n_jobs=-1, verbose=-1),
+                'model': LGBMClassifier(
+                    random_state=config.get('random_seed', 42),
+                    n_jobs=-1,
+                    verbose=-1,
+                    **_gpu_kwargs_lightgbm(),
+                ),
                 'hyperparameters': {
                     'model__n_estimators': [100, 200],
                     'model__max_depth': [5, 10, -1],
@@ -228,7 +263,12 @@ class PipelineGenerator:
             },
             {
                 'name': 'XGBoost',
-                'model': XGBRegressor(random_state=config.get('random_seed', 42), n_jobs=-1, verbosity=0),
+                'model': XGBRegressor(
+                    random_state=config.get('random_seed', 42),
+                    n_jobs=-1,
+                    verbosity=0,
+                    **_gpu_kwargs_xgboost(),
+                ),
                 'hyperparameters': {
                     'model__n_estimators': [100, 200],
                     'model__max_depth': [3, 5, 7],
@@ -239,7 +279,12 @@ class PipelineGenerator:
             },
             {
                 'name': 'LightGBM',
-                'model': LGBMRegressor(random_state=config.get('random_seed', 42), n_jobs=-1, verbose=-1),
+                'model': LGBMRegressor(
+                    random_state=config.get('random_seed', 42),
+                    n_jobs=-1,
+                    verbose=-1,
+                    **_gpu_kwargs_lightgbm(),
+                ),
                 'hyperparameters': {
                     'model__n_estimators': [100, 200],
                     'model__max_depth': [5, 10, -1],
