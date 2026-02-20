@@ -3,6 +3,7 @@ MetaFlow Web UI - Streamlit Interface
 Upload your dataset and let AI design your ML pipeline!
 """
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import sys
 from pathlib import Path
@@ -14,6 +15,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from src.main import MetaFlowAgent
+from src.utils import get_logger
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -62,6 +64,17 @@ st.markdown("""
         border: 1px solid #ffeeba;
         color: #856404;
     }
+    /* Keep main content (right side) at full opacity during pipeline execution */
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewContainer"] section.main,
+    [data-testid="stAppViewContainer"] .block-container,
+    [data-testid="stAppViewContainer"] [data-testid="stVerticalBlock"] {
+        opacity: 1 !important;
+    }
+    /* Prevent Streamlit's script-running overlay from dimming the main area */
+    [data-testid="stAppViewContainer"] > div {
+        opacity: 1 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -70,6 +83,45 @@ if 'results' not in st.session_state:
     st.session_state.results = None
 if 'dataset' not in st.session_state:
     st.session_state.dataset = None
+if 'pipeline_logs' not in st.session_state:
+    st.session_state.pipeline_logs = []
+if 'run_pipeline' not in st.session_state:
+    st.session_state.run_pipeline = False
+
+def _render_logs_scrollable(log_lines, max_height_px=360):
+    """Render log lines in a fixed-height scrollable box with smart auto-scroll (stay at bottom unless user scrolls up)."""
+    import html
+    if not log_lines:
+        return ""
+    lines_html = "<br>".join(html.escape(line) for line in log_lines)
+    scroll_script = """
+    <script>
+    (function() {
+        var el = document.getElementById('metaflow-log-scroll');
+        if (!el) return;
+        var key = 'metaflow_log_autoscroll';
+        el.addEventListener('scroll', function() {
+            var atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 25;
+            try { sessionStorage.setItem(key, atBottom ? '1' : '0'); } catch(e) {}
+        });
+        if (sessionStorage.getItem(key) !== '0') {
+            el.scrollTop = el.scrollHeight;
+            try { sessionStorage.setItem(key, '1'); } catch(e) {}
+        }
+    })();
+    </script>
+    """
+    # Light text so logs are visible on dark theme; single scrollbar only (no iframe scrollbar)
+    return f"""
+    <div style="margin:0; padding:0; overflow:hidden;">
+    <div id="metaflow-log-scroll" style="max-height: {max_height_px}px; overflow-y: auto; overflow-x: auto;
+                border: 1px solid rgba(49, 51, 63, 0.6); border-radius: 6px;
+                padding: 12px; background: rgba(30,30,30,0.95); margin-top: 8px;
+                color: #e8e8e8;">
+        <div style="font-family: monospace; font-size: 13px; white-space: pre; line-height: 1.5; color: #e8e8e8;">{lines_html}</div>
+    </div>
+    </div>
+    """ + scroll_script
 
 def main():
     """Main application"""
@@ -136,19 +188,33 @@ def main():
                     help="More pipelines = better results but slower"
                 )
             
-            # Run button
+            # Run button (only set flag; actual run happens in main area so logs appear on the right)
             st.markdown("---")
             run_button = st.button("🚀 Run MetaFlow", type="primary", use_container_width=True)
             
             if run_button:
-                run_metaflow(df, target_column, max_iterations, n_pipelines)
+                st.session_state.run_pipeline = True
+                st.session_state.run_target_column = target_column
+                st.session_state.run_max_iterations = max_iterations
+                st.session_state.run_n_pipelines = n_pipelines
     
     # Main content
     if st.session_state.dataset is None:
         show_landing_page()
     else:
         show_dataset_overview()
-        
+
+        # Run pipeline from main area so status and logs render on the right, not in sidebar
+        if st.session_state.get("run_pipeline", False):
+            st.session_state.run_pipeline = False
+            run_metaflow(
+                st.session_state.dataset,
+                st.session_state.run_target_column,
+                st.session_state.run_max_iterations,
+                st.session_state.run_n_pipelines,
+            )
+            return
+
         if st.session_state.results is not None:
             show_results()
 
@@ -273,51 +339,122 @@ def show_dataset_overview():
     with st.expander("📈 Statistics", expanded=False):
         st.dataframe(df.describe(), use_container_width=True)
 
+    # Execution logs — auto-expand when Run is clicked so user can see; scrollable box with smart auto-scroll
+    with st.expander(
+        "📋 Execution Logs",
+        expanded=st.session_state.get("run_pipeline", False) or bool(st.session_state.pipeline_logs),
+    ):
+        st.session_state.execution_log_status_ph = st.empty()
+        st.session_state.execution_log_content_ph = st.empty()
+        if st.session_state.pipeline_logs:
+            with st.session_state.execution_log_content_ph.container():
+                components.html(
+                    _render_logs_scrollable(st.session_state.pipeline_logs),
+                    height=400,
+                    scrolling=False,
+                )
+        else:
+            st.session_state.execution_log_content_ph.info(
+                "No execution logs yet. Run MetaFlow to see logs here."
+            )
+
 def run_metaflow(df, target_column, max_iterations, n_pipelines):
     """Run MetaFlow on the dataset"""
-    
+    import threading
+
     # Create necessary directories
     os.makedirs('data', exist_ok=True)
     os.makedirs('models', exist_ok=True)
     os.makedirs('logs', exist_ok=True)
-    
-    # Progress
-    progress_placeholder = st.empty()
-    status_placeholder = st.empty()
-    
-    with st.spinner("🤖 MetaFlow is working..."):
+
+    # Clear and prepare logs for this run
+    st.session_state.pipeline_logs = []
+    log_list = st.session_state.pipeline_logs
+    _logger = get_logger()
+
+    # Use placeholders inside Execution Logs expander (set by show_dataset_overview)
+    status_ph = st.session_state.get("execution_log_status_ph")
+    log_ph = st.session_state.get("execution_log_content_ph")
+
+    result_holder = [None]
+    exception_holder = [None]
+
+    def run_agent():
+        sink_id = None
         try:
-            # Initialize agent
-            status_placeholder.info("🔄 Initializing MetaFlow Agent...")
-            agent = MetaFlowAgent()
-            
-            # Run pipeline
-            status_placeholder.info("🔄 Analyzing dataset and designing pipelines...")
-            time.sleep(0.5)
-            
-            results = agent.run(
+            agent = MetaFlowAgent()  # setup_logger() runs here and removes all handlers
+            # Add our sink after agent init so it is not removed by setup_logger
+            sink_id = _logger.add(
+                lambda msg: log_list.append(msg.strip()),
+                format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}",
+                level="DEBUG",
+            )
+            result_holder[0] = agent.run(
                 dataframe=df,
                 target_column=target_column,
                 max_iterations=max_iterations,
-                n_pipelines=n_pipelines
+                n_pipelines=n_pipelines,
             )
-            
-            # Store results
-            st.session_state.results = results
-            
-            status_placeholder.success("✅ MetaFlow completed successfully!")
-            time.sleep(1)
-            status_placeholder.empty()
-            progress_placeholder.empty()
-            
-            # Rerun to show results
-            st.rerun()
-            
         except Exception as e:
-            status_placeholder.error(f"❌ Error: {str(e)}")
-            st.error(f"Error details: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
+            exception_holder[0] = e
+        finally:
+            if sink_id is not None:
+                try:
+                    _logger.remove(sink_id)
+                except ValueError:
+                    pass
+
+    thread = threading.Thread(target=run_agent)
+    thread.start()
+
+    try:
+        if status_ph:
+            status_ph.info("🔄 Running pipeline... Live logs below.")
+        while thread.is_alive():
+            if log_list and log_ph:
+                with log_ph.container():
+                    components.html(
+                        _render_logs_scrollable(log_list),
+                        height=400,
+                        scrolling=False,
+                    )
+            time.sleep(0.5)
+        thread.join()
+
+        if exception_holder[0] is not None:
+            raise exception_holder[0]
+
+        results = result_holder[0]
+        st.session_state.results = results
+
+        if status_ph:
+            status_ph.success("✅ MetaFlow completed successfully!")
+        time.sleep(1)
+        if status_ph:
+            status_ph.empty()
+        if log_ph and log_list:
+            with log_ph.container():
+                components.html(
+                    _render_logs_scrollable(log_list),
+                    height=400,
+                    scrolling=False,
+                )
+
+        st.rerun()
+
+    except Exception as e:
+        if status_ph:
+            status_ph.error(f"❌ Error: {str(e)}")
+        st.error(f"Error details: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+        if log_ph and log_list:
+            with log_ph.container():
+                components.html(
+                    _render_logs_scrollable(log_list),
+                    height=400,
+                    scrolling=False,
+                )
 
 def show_results():
     """Show MetaFlow results"""
