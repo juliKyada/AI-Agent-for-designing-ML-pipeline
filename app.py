@@ -97,6 +97,12 @@ if 'pipeline_logs' not in st.session_state:
     st.session_state.pipeline_logs = []
 if 'run_pipeline' not in st.session_state:
     st.session_state.run_pipeline = False
+if 'pipeline_running' not in st.session_state:
+    st.session_state.pipeline_running = False
+if 'cancel_training' not in st.session_state:
+    st.session_state.cancel_training = False
+if 'cancel_event' not in st.session_state:
+    st.session_state.cancel_event = None
 
 def _render_logs_scrollable(log_lines, max_height_px=360):
     """Render log lines in a fixed-height scrollable box with smart auto-scroll (stay at bottom unless user scrolls up)."""
@@ -226,10 +232,23 @@ def main():
             run_button = st.button("🚀 Run MetaFlow", type="primary", width="stretch")
             
             if run_button:
+                # Start a new run and reset cancellation state so that the
+                # Stop button becomes available immediately in the UI.
+                st.session_state.cancel_training = False
+                st.session_state.pipeline_running = True
                 st.session_state.run_pipeline = True
                 st.session_state.run_target_column = target_column
                 st.session_state.run_max_iterations = max_iterations
                 st.session_state.run_n_pipelines = n_pipelines
+
+            # When a run is active, expose a Stop button directly in the sidebar
+            if st.session_state.get("pipeline_running", False):
+                if st.button("⏹ Stop Training", key="stop_training_sidebar", type="secondary"):
+                    st.session_state.cancel_training = True
+                    # Notify the background training thread via shared Event
+                    cancel_event = st.session_state.get("cancel_event", None)
+                    if cancel_event is not None:
+                        cancel_event.set()
     
     # Main content
     if st.session_state.dataset is None:
@@ -391,6 +410,14 @@ def show_dataset_overview():
                 "No execution logs yet. Run MetaFlow to see logs here."
             )
 
+        # Allow user to request stopping training while it is running
+        if st.session_state.get("pipeline_running", False):
+            if st.button("⏹ Stop Training", key="stop_training_button"):
+                st.session_state.cancel_training = True
+                cancel_event = st.session_state.get("cancel_event", None)
+                if cancel_event is not None:
+                    cancel_event.set()
+
 def run_metaflow(df, target_column, max_iterations, n_pipelines):
     """Run MetaFlow on the dataset"""
     import threading
@@ -412,6 +439,23 @@ def run_metaflow(df, target_column, max_iterations, n_pipelines):
     result_holder = [None]
     exception_holder = [None]
 
+    # Reset cancellation state and mark pipeline as running
+    st.session_state.cancel_training = False
+    st.session_state.pipeline_running = True
+
+    # Create a shared Event so the UI thread can signal cancellation
+    cancel_event = threading.Event()
+    st.session_state.cancel_event = cancel_event
+
+    def stop_requested() -> bool:
+        """Check whether the user has requested training cancellation.
+
+        This consults the shared threading.Event, which is set by the
+        Stop buttons in the UI. Using an Event avoids relying on
+        Streamlit's session_state across threads.
+        """
+        return cancel_event.is_set()
+
     def run_agent():
         sink_id = None
         try:
@@ -427,6 +471,7 @@ def run_metaflow(df, target_column, max_iterations, n_pipelines):
                 target_column=target_column,
                 max_iterations=max_iterations,
                 n_pipelines=n_pipelines,
+                stop_callback=stop_requested,
             )
         except Exception as e:
             exception_holder[0] = e
@@ -444,6 +489,9 @@ def run_metaflow(df, target_column, max_iterations, n_pipelines):
         if status_ph:
             status_ph.info("🔄 Running pipeline... Live logs below.")
         while thread.is_alive():
+            # Update status if user has requested cancellation
+            if st.session_state.get("cancel_training", False) and status_ph:
+                status_ph.warning("⏹ Stop requested. Finishing current training step before stopping...")
             if log_list and log_ph:
                 with log_ph.container():
                     components.html(
@@ -488,6 +536,9 @@ def run_metaflow(df, target_column, max_iterations, n_pipelines):
                     height=400,
                     scrolling=False,
                 )
+    finally:
+        # Ensure flags are reset when run finishes (successfully or not)
+        st.session_state.pipeline_running = False
 
 def show_results():
     """Show MetaFlow results"""

@@ -6,7 +6,7 @@ import pandas as pd
 import warnings
 from sklearn.model_selection import train_test_split, cross_val_score, ParameterGrid
 from sklearn.base import clone
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Callable, Optional
 from src.detection.task_detector import TaskType
 from src.utils.logger import get_logger
 from src.utils.config import get_config
@@ -61,15 +61,21 @@ class ModelTrainer:
         
         return self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
     
-    def train_all_pipelines(self, pipelines: List[Dict], X: pd.DataFrame, y: pd.Series) -> List[Dict]:
-        """
-        Train all pipelines
-        
+    def train_all_pipelines(
+        self,
+        pipelines: List[Dict],
+        X: pd.DataFrame,
+        y: pd.Series,
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ) -> List[Dict]:
+        """Train all pipelines.
+
         Args:
             pipelines: List of pipeline configurations
             X: Features DataFrame
             y: Target Series
-            
+            stop_callback: Optional callable that returns True when training should stop
+
         Returns:
             List of training results for all pipelines
         """
@@ -83,9 +89,17 @@ class ModelTrainer:
         self.trained_models = []
         
         for i, pipeline_dict in enumerate(pipelines):
+            if stop_callback and stop_callback():
+                logger.info("Stop requested by user. Halting remaining pipeline training.")
+                break
             logger.info(f"Pipeline {i+1}/{len(pipelines)}")
             try:
-                result = self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
+                result = self._train_single_pipeline(
+                    pipeline_dict,
+                    X_processed,
+                    y_processed,
+                    stop_callback=stop_callback,
+                )
             except Exception as e:
                 logger.error(f"Error training {pipeline_dict['name']}: {str(e)}")
                 continue
@@ -93,7 +107,13 @@ class ModelTrainer:
         logger.info(f"Successfully trained {len(self.trained_models)} pipelines")
         return self.trained_models
     
-    def _train_single_pipeline(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series) -> Dict:
+    def _train_single_pipeline(
+        self,
+        pipeline_dict: Dict,
+        X_processed: pd.DataFrame,
+        y_processed: pd.Series,
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ) -> Dict:
         """
         Train a single pipeline with already-preprocessed data
         
@@ -133,7 +153,12 @@ class ModelTrainer:
         if pipeline_dict['hyperparameters']:
             logger.info("  Performing hyperparameter tuning...")
             pipeline = self._tune_hyperparameters(
-                pipeline, pipeline_dict['hyperparameters'], X_train, y_train, pipeline_dict['name']
+                pipeline,
+                pipeline_dict['hyperparameters'],
+                X_train,
+                y_train,
+                pipeline_name=pipeline_dict['name'],
+                stop_callback=stop_callback,
             )
         else:
             logger.info("  Training with default parameters...")
@@ -178,10 +203,21 @@ class ModelTrainer:
             return 1
         return -1
 
-    def _tune_hyperparameters(self, pipeline, param_grid: Dict, X_train, y_train, pipeline_name: str = ""):
-        """
-        Tune hyperparameters by iterating over the grid and logging each combination
-        so progress is visible in Execution Logs (avoids appearing stuck).
+    def _tune_hyperparameters(
+        self,
+        pipeline,
+        param_grid: Dict,
+        X_train,
+        y_train,
+        pipeline_name: str = "",
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ):
+        """Tune hyperparameters, checking for cooperative cancellation.
+
+        Iterates over the grid and logs each combination so progress is visible
+        in Execution Logs (avoids appearing stuck). If ``stop_callback`` is
+        provided and returns True, tuning stops early and the best-found (or
+        original) estimator is returned.
         """
         cv_folds = config.get('training.cv_folds', 5)
         scoring = self._get_scoring_metric()
@@ -197,6 +233,9 @@ class ModelTrainer:
         best_params = None
         best_estimator = None
         for i, params in enumerate(param_list):
+            if stop_callback and stop_callback():
+                logger.info("Stop requested during hyperparameter tuning. Using best parameters found so far.")
+                break
             logger.info(f"    [{i+1}/{n_combinations}] Testing {params}...")
             candidate = clone(pipeline)
             candidate.set_params(**params)
@@ -210,8 +249,14 @@ class ModelTrainer:
                 best_score = mean_score
                 best_params = params
                 best_estimator = candidate
-        logger.info(f"    Best parameters: {best_params}")
-        logger.info(f"    Best CV score: {best_score:.4f}")
+        if best_estimator is None:
+            # No candidate evaluated (e.g., stop requested immediately); fall back to original pipeline
+            logger.info("No hyperparameter candidates evaluated; using original pipeline parameters.")
+            best_estimator = pipeline
+        else:
+            logger.info(f"    Best parameters: {best_params}")
+            logger.info(f"    Best CV score: {best_score:.4f}")
+
         best_estimator.fit(X_train, y_train)
         return best_estimator
     

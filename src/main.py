@@ -4,6 +4,7 @@ AI-Powered ML Pipeline Automation
 """
 import sys
 from pathlib import Path
+from typing import Optional, Callable
 
 # Add project root to path if needed
 project_root = Path(__file__).parent.parent
@@ -29,7 +30,15 @@ class MetaFlowAgent:
         """Initialize MetaFlow Agent"""
         self.agent = PipelineAgent()
     
-    def run(self, dataset_path=None, dataframe=None, target_column=None, max_iterations=None, n_pipelines=None):
+    def run(
+        self,
+        dataset_path: str = None,
+        dataframe=None,
+        target_column: str = None,
+        max_iterations: int = None,
+        n_pipelines: int = None,
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ):
         """
         Run automated ML pipeline design
         
@@ -39,6 +48,7 @@ class MetaFlowAgent:
             target_column: Name of target column
             max_iterations: Maximum optimization iterations
             n_pipelines: Number of candidate pipelines to generate (overrides config)
+            stop_callback: Optional callable that returns True when execution should stop
             
         Returns:
             Dictionary with results including best pipeline and explanation
@@ -48,7 +58,8 @@ class MetaFlowAgent:
             dataframe=dataframe,
             target_column=target_column,
             max_iterations=max_iterations,
-            n_pipelines=n_pipelines
+            n_pipelines=n_pipelines,
+            stop_callback=stop_callback,
         )
     
     def get_results(self):

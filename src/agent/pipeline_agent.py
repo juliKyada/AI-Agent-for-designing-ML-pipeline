@@ -3,7 +3,7 @@ AI Agent for orchestrating the entire ML pipeline automation process
 """
 import pandas as pd
 from pathlib import Path
-from typing import Union, Optional, Dict, Any
+from typing import Union, Optional, Dict, Any, Callable
 from src.data import DataLoader, MetadataExtractor
 from src.detection import TaskDetector, TaskType
 from src.pipeline import PipelineGenerator, PipelineOptimizer
@@ -42,11 +42,15 @@ class PipelineAgent:
         
         self.results = {}
 
-    def run(self, dataset_path: Union[str, Path] = None, 
-            dataframe: pd.DataFrame = None,
-            target_column: str = None,
-            max_iterations: int = None,
-            n_pipelines: int = None) -> Dict[str, Any]:
+    def run(
+        self,
+        dataset_path: Union[str, Path] = None,
+        dataframe: pd.DataFrame = None,
+        target_column: str = None,
+        max_iterations: int = None,
+        n_pipelines: int = None,
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ) -> Dict[str, Any]:
         """
         Run the complete automated pipeline design process
         
@@ -56,6 +60,7 @@ class PipelineAgent:
             target_column: Name of target column
             max_iterations: Maximum optimization iterations (overrides config)
             n_pipelines: Number of candidate pipelines to generate (overrides config)
+            stop_callback: Optional callable that returns True when execution should stop
             
         Returns:
             Dictionary with final results including best pipeline and explanations
@@ -76,7 +81,7 @@ class PipelineAgent:
             self._generate_pipelines(n_pipelines=n_pipelines)
             
             # Step 5: Train Models
-            self._train_models()
+            self._train_models(stop_callback=stop_callback)
             
             # Step 6: Evaluate Performance
             self._evaluate_models()
@@ -166,14 +171,23 @@ class PipelineAgent:
         self.pipelines = self.pipeline_generator.generate(self.task_type, self.metadata, n_pipelines=n_pipelines)
         logger.info(f"✓ Generated {len(self.pipelines)} candidate pipelines")
     
-    def _train_models(self):
-        """Step 5: Train all models"""
+    def _train_models(self, stop_callback: Optional[Callable[[], bool]] = None):
+        """Step 5: Train all models
+
+        Args:
+            stop_callback: Optional callable that returns True when training should stop
+        """
         logger.info("")
         logger.info("STEP 5: Training Models")
         logger.info("-" * 80)
         
         self.model_trainer = ModelTrainer(self.task_type)
-        self.trained_models = self.model_trainer.train_all_pipelines(self.pipelines, self.X, self.y)
+        self.trained_models = self.model_trainer.train_all_pipelines(
+            self.pipelines,
+            self.X,
+            self.y,
+            stop_callback=stop_callback,
+        )
         logger.info(f"✓ Trained {len(self.trained_models)} models")
     
     def _evaluate_models(self):
