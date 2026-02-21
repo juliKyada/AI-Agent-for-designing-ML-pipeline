@@ -44,6 +44,7 @@ class TaskDetector:
         # Get configuration thresholds
         classification_threshold = config.get('detection.classification_threshold', 20)
         min_samples_per_class = config.get('detection.min_samples_per_class', 10)
+        logger.info(f"  Thresholds: classification_threshold={classification_threshold}, min_samples_per_class={min_samples_per_class}")
         
         # Remove NaN values for analysis
         y_clean = y.dropna()
@@ -58,6 +59,7 @@ class TaskDetector:
         n_unique = y_clean.nunique()
         n_samples = len(y_clean)
         dtype = y_clean.dtype
+        logger.info(f"  Target: dtype={dtype}, n_unique={n_unique}, n_samples={n_samples}")
         
         # Decision logic
         if pd.api.types.is_numeric_dtype(dtype):
@@ -114,8 +116,10 @@ class TaskDetector:
                 self.confidence = 1.0
                 self.reason = f"Multiclass classification with {n_unique} classes"
         
-        logger.info(f"Task detected: {self.task_type.value} (confidence: {self.confidence:.2f})")
-        logger.info(f"Reason: {self.reason}")
+        logger.info("Task detection result:")
+        logger.info(f"  -> Task type: {self.task_type.value.upper()}")
+        logger.info(f"  -> Confidence: {self.confidence:.2%}")
+        logger.info(f"  -> Reason: {self.reason}")
         
         return self.task_type, self.confidence, self.reason
     
