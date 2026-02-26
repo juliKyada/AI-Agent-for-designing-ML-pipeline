@@ -223,7 +223,7 @@ def main():
             
             # Run button (only set flag; actual run happens in main area so logs appear on the right)
             st.markdown("---")
-            run_button = st.button("🚀 Run MetaFlow", type="primary", width="stretch")
+            run_button = st.button("🚀 Run MetaFlow", type="primary", use_container_width=True)
             
             if run_button:
                 st.session_state.run_pipeline = True
@@ -312,15 +312,15 @@ def show_landing_page():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🌸 Iris Dataset (Classification)", width="stretch"):
+        if st.button("🌸 Iris Dataset (Classification)", use_container_width=True):
             load_demo_dataset('iris')
     
     with col2:
-        if st.button("🏥 Diabetes Dataset (Regression)", width="stretch"):
+        if st.button("🏥 Diabetes Dataset (Regression)", use_container_width=True):
             load_demo_dataset('diabetes')
     
     with col3:
-        if st.button("🎲 Synthetic Dataset", width="stretch"):
+        if st.button("🎲 Synthetic Dataset", use_container_width=True):
             load_demo_dataset('synthetic')
 
 def load_demo_dataset(dataset_name):
@@ -366,11 +366,11 @@ def show_dataset_overview():
     
     # Show data
     with st.expander("👁️ View Data", expanded=False):
-        st.dataframe(df.head(100), width="stretch")
+        st.dataframe(df.head(100), use_container_width=True)
     
     # Show statistics
     with st.expander("📈 Statistics", expanded=False):
-        st.dataframe(df.describe(), width="stretch")
+        st.dataframe(df.describe(), use_container_width=True)
 
     # Execution logs — auto-expand when Run is clicked so user can see; scrollable box with smart auto-scroll
     with st.expander(
@@ -476,11 +476,35 @@ def run_metaflow(df, target_column, max_iterations, n_pipelines):
         st.rerun()
 
     except Exception as e:
+        error_msg = str(e)
+        
+        # Check for data quality issues and show friendly message
+        if "No models trained successfully" in error_msg or "No evaluations available" in error_msg:
+            st.error("### ⚠️ Data Quality Issue")
+            st.markdown(f"""
+**Your dataset has insufficient samples for reliable model training.**
+
+This usually happens when:
+- **Classes are too small**: Some classes have fewer than 2 samples per class
+- **Extreme imbalance**: One class dominates significantly  
+- **Dataset too small**: Very few total samples overall
+
+**Recommended Solutions:**
+1. **Collect more data** - Gather additional samples, especially for minority classes
+2. **Combine similar classes** - Merge small classes into broader categories
+3. **Use simpler models** - Some models are more tolerant of small sample sizes
+4. **Rebalance the target** - Work towards more balanced class distribution
+
+**Your Current Data:**
+- Total samples: {len(df)}
+- Target variable: {target_column}
+- Class distribution: {df[target_column].value_counts().to_dict() if target_column in df.columns else 'N/A'}
+            """)
+        else:
+            st.error(f"❌ Error: {error_msg}")
+        
         if status_ph:
-            status_ph.error(f"❌ Error: {str(e)}")
-        st.error(f"Error details: {str(e)}")
-        import traceback
-        st.code(traceback.format_exc())
+            status_ph.empty()
         if log_ph and log_list:
             with log_ph.container():
                 components.html(
@@ -495,6 +519,13 @@ def show_results():
 
     st.markdown("---")
     st.markdown("## 🎯 Results")
+    
+    # Display any data quality warnings
+    if 'training_warnings' in results and results['training_warnings']:
+        with st.container():
+            st.info("### ⚠️ Data Quality Notes")
+            for warning in results['training_warnings']:
+                st.write(warning)
     
     # Task type
     col1, col2, col3 = st.columns(3)
@@ -545,7 +576,7 @@ def show_results():
     with col1:
         # Save model
         model_path = 'models/best_model.pkl'
-        if st.button("💾 Save Best Model", width="stretch"):
+        if st.button("💾 Save Best Model", use_container_width=True):
             from src.main import MetaFlowAgent
             agent = MetaFlowAgent()
             agent.agent.results = results
@@ -560,7 +591,7 @@ def show_results():
             data=report,
             file_name="metaflow_report.txt",
             mime="text/plain",
-            width="stretch"
+            use_container_width=True
         )
 
 def show_performance_tab(results):
@@ -615,7 +646,7 @@ def show_performance_tab(results):
             title="Performance Comparison"
         )
         
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     
     else:
         # Regression metrics
@@ -660,7 +691,7 @@ def show_all_pipelines_tab(results):
             })
     
     df_comparison = pd.DataFrame(comparison_data)
-    st.dataframe(df_comparison, width="stretch")
+    st.dataframe(df_comparison, use_container_width=True)
     
     # Visualization
     if results['task_type'] == 'classification':
@@ -679,7 +710,7 @@ def show_all_pipelines_tab(results):
         title=f'Pipeline Comparison - {metric_name}'
     )
     
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 def show_issues_tab(results):
     """Show issues and recommendations"""
@@ -752,7 +783,7 @@ def show_full_report_tab(results):
                 'Feature': list(preprocessing['imputation_values'].keys()),
                 'Value': list(preprocessing['imputation_values'].values())
             })
-            st.dataframe(imputation_df, width="stretch")
+            st.dataframe(imputation_df, use_container_width=True)
     
     # Show full report in expandable section
     with st.expander("📊 Detailed Technical Report", expanded=False):

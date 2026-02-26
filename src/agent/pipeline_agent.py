@@ -96,6 +96,7 @@ class PipelineAgent:
                 'task_type': self.task_type.value,
                 'metadata': self.metadata,
                 'preprocessing': self.model_trainer.get_preprocessing_report(),
+                'training_warnings': self.model_trainer.get_training_warnings(),
                 'best_pipeline': {
                     'name': best_pipeline['pipeline_name'],
                     'model': best_pipeline['trained_model_result']['trained_model'],

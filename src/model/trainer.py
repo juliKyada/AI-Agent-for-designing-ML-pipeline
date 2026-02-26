@@ -6,7 +6,7 @@ import pandas as pd
 import warnings
 from sklearn.model_selection import train_test_split, cross_val_score, ParameterGrid
 from sklearn.base import clone
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from src.detection.task_detector import TaskType
 from src.utils.logger import get_logger
 from src.utils.config import get_config
@@ -31,10 +31,58 @@ class ModelTrainer:
         """
         self.task_type = task_type
         self.trained_models = []
+        self.training_warnings: List[str] = []
         self.preprocessor = DataPreprocessor(
             missing_threshold=config.get('data.max_missing_ratio', 0.5),
             imputation_strategy=config.get('data.imputation_strategy', 'auto')
         )
+    
+    def _check_class_imbalance(self, y: pd.Series) -> List[str]:
+        """
+        Check for class imbalance issues that may cause training problems.
+        
+        Args:
+            y: Target Series
+            
+        Returns:
+            List of warning messages for problematic classes
+        """
+        warnings_list = []
+        class_counts = y.value_counts().sort_values()
+        total_samples = len(y)
+        cv_folds = config.get('training.cv_folds', 5)
+        
+        # Check if any class has too few samples for cross-validation
+        min_samples_per_fold = 1
+        
+        for class_label, count in class_counts.items():
+            if count < 2:
+                warnings_list.append(
+                    f"Class '{class_label}' has only {count} sample(s) - "
+                    f"insufficient data for reliable model training. Consider combining classes or collecting more data."
+                )
+            elif count < cv_folds * min_samples_per_fold:
+                min_required = cv_folds * min_samples_per_fold
+                warnings_list.append(
+                    f"Class '{class_label}' has {count} sample(s), but {min_required} are recommended "
+                    f"for {cv_folds}-fold cross-validation. Some models may fail to train."
+                )
+        
+        # Check overall class balance
+        if len(class_counts) > 1:
+            imbalance_ratio = class_counts.max() / max(class_counts.min(), 1)
+            if imbalance_ratio > 10:
+                warnings_list.append(
+                    f"Severe class imbalance detected (ratio: {imbalance_ratio:.1f}:1). "
+                    f"Model performance may be biased toward the majority class. Consider using class balancing techniques."
+                )
+            elif imbalance_ratio > 3:
+                warnings_list.append(
+                    f"Moderate class imbalance detected (ratio: {imbalance_ratio:.1f}:1). "
+                    f"Results should be interpreted carefully."
+                )
+        
+        return warnings_list
     
     def train_pipeline(self, pipeline_dict: Dict, X: pd.DataFrame, y: pd.Series,
                       tune_hyperparameters: bool = True) -> Dict:
@@ -75,23 +123,197 @@ class ModelTrainer:
         """
         logger.info(f"Training {len(pipelines)} pipelines...")
         
+        # Check for class imbalance issues early (for classification tasks)
+        imbalance_warnings = []
+        if self.task_type == TaskType.CLASSIFICATION:
+            imbalance_warnings = self._check_class_imbalance(y)
+            for warning in imbalance_warnings:
+                logger.warning(f"⚠️  {warning}")
+        
         # Preprocess data once for all pipelines (ensures consistency)
         logger.info("Preprocessing data once for all pipelines...")
         X_processed, y_processed = self.preprocessor.fit(X, y)
         logger.info(f"Data preprocessed: {X_processed.shape[0]} samples, {X_processed.shape[1]} features")
         
         self.trained_models = []
+        self.training_warnings = imbalance_warnings or []  # Store for UI display
+        
+        # Track if we need to retry with reduced CV folds
+        retry_with_reduced_cv = False
         
         for i, pipeline_dict in enumerate(pipelines):
             logger.info(f"Pipeline {i+1}/{len(pipelines)}")
             try:
                 result = self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
+            except ValueError as e:
+                # Handle class imbalance and other ValueError exceptions gracefully
+                error_msg = str(e)
+                if 'too few' in error_msg.lower() or 'class' in error_msg.lower():
+                    logger.warning(f"Attempting to train {pipeline_dict['name']} with reduced cross-validation...")
+                    retry_with_reduced_cv = True
+                    try:
+                        # Retry with reduced CV folds (3-fold instead of 5)
+                        result = self._train_single_pipeline_with_cv_folds(pipeline_dict, X_processed, y_processed, cv_folds=3)
+                        logger.info(f"✓ Successfully trained {pipeline_dict['name']} with 3-fold CV")
+                    except Exception as retry_error:
+                        warning = f"⚠️  Could not train {pipeline_dict['name']}: Limited class representation in data"
+                        logger.warning(warning)
+                        self.training_warnings.append(warning)
+                        continue
+                else:
+                    logger.error(f"Error training {pipeline_dict['name']}: {error_msg}")
+                    continue
             except Exception as e:
                 logger.error(f"Error training {pipeline_dict['name']}: {str(e)}")
                 continue
         
+        # If still no models trained, at least try with minimal validation
+        if len(self.trained_models) == 0 and retry_with_reduced_cv:
+            logger.warning("No models trained successfully. Attempting final fallback with minimal validation...")
+            self._train_all_with_minimal_validation(pipelines, X_processed, y_processed)
+        
         logger.info(f"Successfully trained {len(self.trained_models)} pipelines")
         return self.trained_models
+    
+    def _train_all_with_minimal_validation(self, pipelines, X_processed, y_processed):
+        """Train all pipelines with minimal validation when class imbalance is severe"""
+        logger.info("Training models with minimal cross-validation (holdout validation only)...")
+        test_size = config.get('data.test_size', 0.2)
+        random_seed = config.get('random_seed', 42)
+        
+        for pipeline_dict in pipelines:
+            try:
+                pipeline = pipeline_dict['pipeline']
+                
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X_processed, y_processed, test_size=test_size, random_state=random_seed
+                )
+                
+                X_train = pd.DataFrame(X_train, columns=X_processed.columns) if not isinstance(X_train, pd.DataFrame) else X_train
+                X_test = pd.DataFrame(X_test, columns=X_processed.columns) if not isinstance(X_test, pd.DataFrame) else X_test
+                
+                logger.info(f"Training {pipeline_dict['name']} (holdout validation only)...")
+                pipeline.fit(X_train, y_train)
+                
+                y_train_pred = pipeline.predict(X_train)
+                y_test_pred = pipeline.predict(X_test)
+                
+                result = {
+                    'pipeline_id': pipeline_dict['id'],
+                    'pipeline_name': pipeline_dict['name'],
+                    'pipeline': pipeline,
+                    'trained_model': pipeline,
+                    'X_train': X_train,
+                    'X_test': X_test,
+                    'y_train': y_train,
+                    'y_test': y_test,
+                    'y_train_pred': y_train_pred,
+                    'y_test_pred': y_test_pred,
+                    'cv_scores': np.array([0.0]),  # Placeholder
+                    'cv_mean': 0.0,
+                    'cv_std': 0.0,
+                    'best_params': pipeline.named_steps['model'].get_params() if hasattr(pipeline, 'named_steps') else {}
+                }
+                
+                logger.info(f"✓ {pipeline_dict['name']} trained successfully (no CV due to data limitations)")
+                self.trained_models.append(result)
+            except Exception as e:
+                logger.warning(f"Could not train {pipeline_dict['name']}: {str(e)}")
+                continue
+    
+    def _train_single_pipeline_with_cv_folds(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series, cv_folds: int = 3) -> Dict:
+        """Train single pipeline with custom CV fold count"""
+        logger.info(f"Training pipeline: {pipeline_dict['name']} with {cv_folds}-fold CV")
+        
+        pipeline = pipeline_dict['pipeline']
+        
+        if not isinstance(X_processed, pd.DataFrame):
+            logger.warning("X_processed is not a DataFrame, converting...")
+            X_processed = pd.DataFrame(X_processed)
+        
+        test_size = config.get('data.test_size', 0.2)
+        random_seed = config.get('random_seed', 42)
+        
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_processed, y_processed, test_size=test_size, random_state=random_seed, stratify=y_processed if self._is_classification() else None
+        )
+        
+        X_train = pd.DataFrame(X_train, columns=X_processed.columns) if not isinstance(X_train, pd.DataFrame) else X_train
+        X_test = pd.DataFrame(X_test, columns=X_processed.columns) if not isinstance(X_test, pd.DataFrame) else X_test
+        
+        logger.info(f"  Train size: {len(X_train)}, Test size: {len(X_test)}")
+        
+        # Training with hyperparameter tuning
+        if pipeline_dict['hyperparameters']:
+            logger.info(f"  Performing hyperparameter tuning with {cv_folds}-fold CV...")
+            pipeline = self._tune_hyperparameters_with_cv(pipeline, pipeline_dict['hyperparameters'], X_train, y_train, cv_folds, pipeline_dict['name'])
+        else:
+            logger.info(f"  Training with default parameters...")
+            pipeline.fit(X_train, y_train)
+        
+        y_train_pred = pipeline.predict(X_train)
+        y_test_pred = pipeline.predict(X_test)
+        
+        # Reduced CV with custom fold count
+        scoring = self._get_scoring_metric()
+        cv_n_jobs = self._safe_n_jobs_for_cv(pipeline_dict['name'])
+        logger.info(f"  Computing {cv_folds}-fold cross-validation score...")
+        cv_scores = cross_val_score(pipeline, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=cv_n_jobs)
+        
+        result = {
+            'pipeline_id': pipeline_dict['id'],
+            'pipeline_name': pipeline_dict['name'],
+            'pipeline': pipeline,
+            'trained_model': pipeline,
+            'X_train': X_train,
+            'X_test': X_test,
+            'y_train': y_train,
+            'y_test': y_test,
+            'y_train_pred': y_train_pred,
+            'y_test_pred': y_test_pred,
+            'cv_scores': cv_scores,
+            'cv_mean': cv_scores.mean(),
+            'cv_std': cv_scores.std(),
+            'best_params': pipeline.named_steps['model'].get_params() if hasattr(pipeline, 'named_steps') else {}
+        }
+        
+        logger.info(f"  Training complete. CV Score: {result['cv_mean']:.4f} (+/- {result['cv_std']:.4f})")
+        
+        self.trained_models.append(result)
+        return result
+    
+    def _tune_hyperparameters_with_cv(self, pipeline, param_grid: Dict, X_train, y_train, cv_folds: int, pipeline_name: str = ""):
+        """Tune hyperparameters with custom CV fold count"""
+        scoring = self._get_scoring_metric()
+        n_jobs = self._safe_n_jobs_for_cv(pipeline_name)
+        param_list = list(ParameterGrid(param_grid))
+        n_combinations = len(param_list)
+        if n_combinations == 0:
+            pipeline.fit(X_train, y_train)
+            return pipeline
+        total_fits = n_combinations * cv_folds
+        logger.info(f"    Grid search: {cv_folds} folds × {n_combinations} candidates = {total_fits} fits")
+        best_score = -np.inf
+        best_params = None
+        best_estimator = None
+        for i, params in enumerate(param_list):
+            logger.info(f"    [{i+1}/{n_combinations}] Testing {params}...")
+            candidate = clone(pipeline)
+            candidate.set_params(**params)
+            scores = cross_val_score(
+                candidate, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=n_jobs
+            )
+            mean_score = float(np.mean(scores))
+            std_score = float(np.std(scores))
+            logger.info(f"        -> CV score: {mean_score:.4f} (+/- {std_score:.4f})")
+            if mean_score > best_score:
+                best_score = mean_score
+                best_params = params
+                best_estimator = candidate
+        logger.info(f"    Best parameters: {best_params}")
+        logger.info(f"    Best CV score: {best_score:.4f}")
+        best_estimator.fit(X_train, y_train)
+        return best_estimator
     
     def _train_single_pipeline(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series) -> Dict:
         """
@@ -239,3 +461,7 @@ class ModelTrainer:
                 'imputation_strategy': self.preprocessor.imputation_strategy,
             }
         return {}
+    
+    def get_training_warnings(self) -> List[str]:
+        """Get warning messages from training"""
+        return self.training_warnings
