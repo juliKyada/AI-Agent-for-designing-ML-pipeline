@@ -28,6 +28,7 @@ from lightgbm import LGBMRegressor
 
 from typing import List, Dict, Any
 from src.detection.task_detector import TaskType
+from src.pipeline.model_selector import RuleBasedModelSelector
 from src.utils.logger import get_logger
 from src.utils.config import get_config
 
@@ -38,14 +39,21 @@ config = get_config()
 class PipelineGenerator:
     """Generates candidate ML pipelines based on task type and data characteristics"""
     
-    def __init__(self):
-        """Initialize PipelineGenerator"""
+    def __init__(self, use_rule_based_selection: bool = True):
+        """
+        Initialize PipelineGenerator
+        
+        Args:
+            use_rule_based_selection: Use intelligent rule-based model selection (default: True)
+        """
         self.pipelines = []
         self.preprocessors = []
+        self.use_rule_based_selection = use_rule_based_selection
+        self.model_selector = RuleBasedModelSelector() if use_rule_based_selection else None
     
     def generate(self, task_type: TaskType, metadata: Dict[str, Any], n_pipelines: int = None) -> List[Dict]:
         """
-        Generate candidate pipelines
+        Generate candidate pipelines using rule-based intelligent model selection
         
         Args:
             task_type: Type of ML task (classification or regression)
@@ -67,15 +75,26 @@ class PipelineGenerator:
         # Create preprocessor
         preprocessor = self._create_preprocessor(numerical_features, categorical_features)
         
-        # Get model configurations
-        if task_type == TaskType.CLASSIFICATION:
-            model_configs = self._get_classification_models()
+        # Get model configurations using rule-based selection or fallback to legacy method
+        if self.use_rule_based_selection:
+            logger.info("Using rule-based intelligent model selection")
+            model_recommendations = self.model_selector.select_models(
+                task_type, 
+                metadata, 
+                max_models=n_pipelines
+            )
+            model_configs = self._convert_recommendations_to_configs(model_recommendations)
         else:
-            model_configs = self._get_regression_models()
+            logger.info("Using legacy model selection")
+            if task_type == TaskType.CLASSIFICATION:
+                model_configs = self._get_classification_models()
+            else:
+                model_configs = self._get_regression_models()
+            model_configs = model_configs[:n_pipelines]
         
         # Generate pipelines
         self.pipelines = []
-        for i, model_config in enumerate(model_configs[:n_pipelines]):
+        for i, model_config in enumerate(model_configs):
             pipeline_dict = {
                 'id': i,
                 'name': model_config['name'],
@@ -83,7 +102,8 @@ class PipelineGenerator:
                 'model': model_config['model'],
                 'hyperparameters': model_config['hyperparameters'],
                 'description': model_config['description'],
-                'pipeline': None  # Will be set when pipeline is built
+                'pipeline': None,  # Will be set when pipeline is built
+                'selection_reason': model_config.get('reason', 'N/A')
             }
             
             # Build sklearn pipeline
@@ -97,6 +117,53 @@ class PipelineGenerator:
         
         logger.info(f"Generated {len(self.pipelines)} pipelines")
         return self.pipelines
+    
+    def _convert_recommendations_to_configs(self, recommendations) -> List[Dict]:
+        """
+        Convert ModelRecommendation objects to pipeline configurations
+        
+        Args:
+            recommendations: List of ModelRecommendation objects
+            
+        Returns:
+            List of model configuration dictionaries
+        """
+        configs = []
+        random_seed = config.get('random_seed', 42)
+        
+        for rec in recommendations:
+            # Instantiate model with default parameters
+            model_kwargs = {'random_state': random_seed} if 'random_state' in rec.model_class.__init__.__code__.co_varnames else {}
+            
+            # Add common parameters
+            if rec.model_class.__name__ in ['RandomForestClassifier', 'RandomForestRegressor', 
+                                             'XGBClassifier', 'XGBRegressor',
+                                             'LGBMClassifier', 'LGBMRegressor']:
+                model_kwargs['n_jobs'] = -1
+            
+            # Add verbosity control for XGBoost
+            if 'XGB' in rec.model_class.__name__:
+                model_kwargs['verbosity'] = 0
+            
+            # Add verbosity control for LightGBM
+            if 'LGBM' in rec.model_class.__name__:
+                model_kwargs['verbosity'] = -1
+            
+            # Add max_iter for logistic/linear regression
+            if rec.model_class.__name__ in ['LogisticRegression']:
+                model_kwargs['max_iter'] = 1000
+            
+            model = rec.model_class(**model_kwargs)
+            
+            configs.append({
+                'name': rec.name,
+                'model': model,
+                'hyperparameters': rec.hyperparameters,
+                'description': rec.description,
+                'reason': rec.reason
+            })
+        
+        return configs
     
     def _create_preprocessor(self, numerical_features: List[str], categorical_features: List[str]):
         """

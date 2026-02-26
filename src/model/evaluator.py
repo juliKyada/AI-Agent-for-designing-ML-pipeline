@@ -236,7 +236,13 @@ class ModelEvaluator:
             Best evaluation result
         """
         if not self.evaluations:
-            raise ValueError("No evaluations available")
+            logger.error("⚠️  No models successfully trained")
+            raise ValueError(
+                "No models trained successfully due to data limitations. "
+                "Your dataset may have insufficient samples or extreme class imbalance. "
+                "Please consider: 1) Collecting more data, 2) Combining small classes, "
+                "or 3) Using a dataset with better class distribution."
+            )
         
         # Sort by primary metric
         if self._is_classification():

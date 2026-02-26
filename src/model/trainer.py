@@ -6,7 +6,7 @@ import pandas as pd
 import warnings
 from sklearn.model_selection import train_test_split, cross_val_score, ParameterGrid
 from sklearn.base import clone
-from typing import Dict, List, Any, Tuple, Callable, Optional
+from typing import Dict, List, Any, Tuple
 from src.detection.task_detector import TaskType
 from src.utils.logger import get_logger
 from src.utils.config import get_config
@@ -31,10 +31,58 @@ class ModelTrainer:
         """
         self.task_type = task_type
         self.trained_models = []
+        self.training_warnings: List[str] = []
         self.preprocessor = DataPreprocessor(
             missing_threshold=config.get('data.max_missing_ratio', 0.5),
             imputation_strategy=config.get('data.imputation_strategy', 'auto')
         )
+    
+    def _check_class_imbalance(self, y: pd.Series) -> List[str]:
+        """
+        Check for class imbalance issues that may cause training problems.
+        
+        Args:
+            y: Target Series
+            
+        Returns:
+            List of warning messages for problematic classes
+        """
+        warnings_list = []
+        class_counts = y.value_counts().sort_values()
+        total_samples = len(y)
+        cv_folds = config.get('training.cv_folds', 5)
+        
+        # Check if any class has too few samples for cross-validation
+        min_samples_per_fold = 1
+        
+        for class_label, count in class_counts.items():
+            if count < 2:
+                warnings_list.append(
+                    f"Class '{class_label}' has only {count} sample(s) - "
+                    f"insufficient data for reliable model training. Consider combining classes or collecting more data."
+                )
+            elif count < cv_folds * min_samples_per_fold:
+                min_required = cv_folds * min_samples_per_fold
+                warnings_list.append(
+                    f"Class '{class_label}' has {count} sample(s), but {min_required} are recommended "
+                    f"for {cv_folds}-fold cross-validation. Some models may fail to train."
+                )
+        
+        # Check overall class balance
+        if len(class_counts) > 1:
+            imbalance_ratio = class_counts.max() / max(class_counts.min(), 1)
+            if imbalance_ratio > 10:
+                warnings_list.append(
+                    f"Severe class imbalance detected (ratio: {imbalance_ratio:.1f}:1). "
+                    f"Model performance may be biased toward the majority class. Consider using class balancing techniques."
+                )
+            elif imbalance_ratio > 3:
+                warnings_list.append(
+                    f"Moderate class imbalance detected (ratio: {imbalance_ratio:.1f}:1). "
+                    f"Results should be interpreted carefully."
+                )
+        
+        return warnings_list
     
     def train_pipeline(self, pipeline_dict: Dict, X: pd.DataFrame, y: pd.Series,
                       tune_hyperparameters: bool = True) -> Dict:
@@ -81,12 +129,23 @@ class ModelTrainer:
         """
         logger.info(f"Training {len(pipelines)} pipelines...")
         
+        # Check for class imbalance issues early (for classification tasks)
+        imbalance_warnings = []
+        if self.task_type == TaskType.CLASSIFICATION:
+            imbalance_warnings = self._check_class_imbalance(y)
+            for warning in imbalance_warnings:
+                logger.warning(f"⚠️  {warning}")
+        
         # Preprocess data once for all pipelines (ensures consistency)
         logger.info("Preprocessing data once for all pipelines...")
         X_processed, y_processed = self.preprocessor.fit(X, y)
         logger.info(f"Data preprocessed: {X_processed.shape[0]} samples, {X_processed.shape[1]} features")
         
         self.trained_models = []
+        self.training_warnings = imbalance_warnings or []  # Store for UI display
+        
+        # Track if we need to retry with reduced CV folds
+        retry_with_reduced_cv = False
         
         for i, pipeline_dict in enumerate(pipelines):
             if stop_callback and stop_callback():
@@ -94,26 +153,20 @@ class ModelTrainer:
                 break
             logger.info(f"Pipeline {i+1}/{len(pipelines)}")
             try:
-                result = self._train_single_pipeline(
-                    pipeline_dict,
-                    X_processed,
-                    y_processed,
-                    stop_callback=stop_callback,
-                )
+                result = self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
             except Exception as e:
                 logger.error(f"Error training {pipeline_dict['name']}: {str(e)}")
                 continue
         
+        # If still no models trained, at least try with minimal validation
+        if len(self.trained_models) == 0 and retry_with_reduced_cv:
+            logger.warning("No models trained successfully. Attempting final fallback with minimal validation...")
+            self._train_all_with_minimal_validation(pipelines, X_processed, y_processed)
+        
         logger.info(f"Successfully trained {len(self.trained_models)} pipelines")
         return self.trained_models
     
-    def _train_single_pipeline(
-        self,
-        pipeline_dict: Dict,
-        X_processed: pd.DataFrame,
-        y_processed: pd.Series,
-        stop_callback: Optional[Callable[[], bool]] = None,
-    ) -> Dict:
+    def _train_single_pipeline(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series) -> Dict:
         """
         Train a single pipeline with already-preprocessed data
         
@@ -284,3 +337,7 @@ class ModelTrainer:
                 'imputation_strategy': self.preprocessor.imputation_strategy,
             }
         return {}
+    
+    def get_training_warnings(self) -> List[str]:
+        """Get warning messages from training"""
+        return self.training_warnings
