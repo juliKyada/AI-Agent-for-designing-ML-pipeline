@@ -6,7 +6,7 @@ import pandas as pd
 import warnings
 from sklearn.model_selection import train_test_split, cross_val_score, ParameterGrid
 from sklearn.base import clone
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Tuple
 from src.detection.task_detector import TaskType
 from src.utils.logger import get_logger
 from src.utils.config import get_config
@@ -109,15 +109,21 @@ class ModelTrainer:
         
         return self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
     
-    def train_all_pipelines(self, pipelines: List[Dict], X: pd.DataFrame, y: pd.Series) -> List[Dict]:
-        """
-        Train all pipelines
-        
+    def train_all_pipelines(
+        self,
+        pipelines: List[Dict],
+        X: pd.DataFrame,
+        y: pd.Series,
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ) -> List[Dict]:
+        """Train all pipelines.
+
         Args:
             pipelines: List of pipeline configurations
             X: Features DataFrame
             y: Target Series
-            
+            stop_callback: Optional callable that returns True when training should stop
+
         Returns:
             List of training results for all pipelines
         """
@@ -142,27 +148,12 @@ class ModelTrainer:
         retry_with_reduced_cv = False
         
         for i, pipeline_dict in enumerate(pipelines):
+            if stop_callback and stop_callback():
+                logger.info("Stop requested by user. Halting remaining pipeline training.")
+                break
             logger.info(f"Pipeline {i+1}/{len(pipelines)}")
             try:
                 result = self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
-            except ValueError as e:
-                # Handle class imbalance and other ValueError exceptions gracefully
-                error_msg = str(e)
-                if 'too few' in error_msg.lower() or 'class' in error_msg.lower():
-                    logger.warning(f"Attempting to train {pipeline_dict['name']} with reduced cross-validation...")
-                    retry_with_reduced_cv = True
-                    try:
-                        # Retry with reduced CV folds (3-fold instead of 5)
-                        result = self._train_single_pipeline_with_cv_folds(pipeline_dict, X_processed, y_processed, cv_folds=3)
-                        logger.info(f"✓ Successfully trained {pipeline_dict['name']} with 3-fold CV")
-                    except Exception as retry_error:
-                        warning = f"⚠️  Could not train {pipeline_dict['name']}: Limited class representation in data"
-                        logger.warning(warning)
-                        self.training_warnings.append(warning)
-                        continue
-                else:
-                    logger.error(f"Error training {pipeline_dict['name']}: {error_msg}")
-                    continue
             except Exception as e:
                 logger.error(f"Error training {pipeline_dict['name']}: {str(e)}")
                 continue
@@ -174,146 +165,6 @@ class ModelTrainer:
         
         logger.info(f"Successfully trained {len(self.trained_models)} pipelines")
         return self.trained_models
-    
-    def _train_all_with_minimal_validation(self, pipelines, X_processed, y_processed):
-        """Train all pipelines with minimal validation when class imbalance is severe"""
-        logger.info("Training models with minimal cross-validation (holdout validation only)...")
-        test_size = config.get('data.test_size', 0.2)
-        random_seed = config.get('random_seed', 42)
-        
-        for pipeline_dict in pipelines:
-            try:
-                pipeline = pipeline_dict['pipeline']
-                
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X_processed, y_processed, test_size=test_size, random_state=random_seed
-                )
-                
-                X_train = pd.DataFrame(X_train, columns=X_processed.columns) if not isinstance(X_train, pd.DataFrame) else X_train
-                X_test = pd.DataFrame(X_test, columns=X_processed.columns) if not isinstance(X_test, pd.DataFrame) else X_test
-                
-                logger.info(f"Training {pipeline_dict['name']} (holdout validation only)...")
-                pipeline.fit(X_train, y_train)
-                
-                y_train_pred = pipeline.predict(X_train)
-                y_test_pred = pipeline.predict(X_test)
-                
-                result = {
-                    'pipeline_id': pipeline_dict['id'],
-                    'pipeline_name': pipeline_dict['name'],
-                    'pipeline': pipeline,
-                    'trained_model': pipeline,
-                    'X_train': X_train,
-                    'X_test': X_test,
-                    'y_train': y_train,
-                    'y_test': y_test,
-                    'y_train_pred': y_train_pred,
-                    'y_test_pred': y_test_pred,
-                    'cv_scores': np.array([0.0]),  # Placeholder
-                    'cv_mean': 0.0,
-                    'cv_std': 0.0,
-                    'best_params': pipeline.named_steps['model'].get_params() if hasattr(pipeline, 'named_steps') else {}
-                }
-                
-                logger.info(f"✓ {pipeline_dict['name']} trained successfully (no CV due to data limitations)")
-                self.trained_models.append(result)
-            except Exception as e:
-                logger.warning(f"Could not train {pipeline_dict['name']}: {str(e)}")
-                continue
-    
-    def _train_single_pipeline_with_cv_folds(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series, cv_folds: int = 3) -> Dict:
-        """Train single pipeline with custom CV fold count"""
-        logger.info(f"Training pipeline: {pipeline_dict['name']} with {cv_folds}-fold CV")
-        
-        pipeline = pipeline_dict['pipeline']
-        
-        if not isinstance(X_processed, pd.DataFrame):
-            logger.warning("X_processed is not a DataFrame, converting...")
-            X_processed = pd.DataFrame(X_processed)
-        
-        test_size = config.get('data.test_size', 0.2)
-        random_seed = config.get('random_seed', 42)
-        
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_processed, y_processed, test_size=test_size, random_state=random_seed, stratify=y_processed if self._is_classification() else None
-        )
-        
-        X_train = pd.DataFrame(X_train, columns=X_processed.columns) if not isinstance(X_train, pd.DataFrame) else X_train
-        X_test = pd.DataFrame(X_test, columns=X_processed.columns) if not isinstance(X_test, pd.DataFrame) else X_test
-        
-        logger.info(f"  Train size: {len(X_train)}, Test size: {len(X_test)}")
-        
-        # Training with hyperparameter tuning
-        if pipeline_dict['hyperparameters']:
-            logger.info(f"  Performing hyperparameter tuning with {cv_folds}-fold CV...")
-            pipeline = self._tune_hyperparameters_with_cv(pipeline, pipeline_dict['hyperparameters'], X_train, y_train, cv_folds, pipeline_dict['name'])
-        else:
-            logger.info(f"  Training with default parameters...")
-            pipeline.fit(X_train, y_train)
-        
-        y_train_pred = pipeline.predict(X_train)
-        y_test_pred = pipeline.predict(X_test)
-        
-        # Reduced CV with custom fold count
-        scoring = self._get_scoring_metric()
-        cv_n_jobs = self._safe_n_jobs_for_cv(pipeline_dict['name'])
-        logger.info(f"  Computing {cv_folds}-fold cross-validation score...")
-        cv_scores = cross_val_score(pipeline, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=cv_n_jobs)
-        
-        result = {
-            'pipeline_id': pipeline_dict['id'],
-            'pipeline_name': pipeline_dict['name'],
-            'pipeline': pipeline,
-            'trained_model': pipeline,
-            'X_train': X_train,
-            'X_test': X_test,
-            'y_train': y_train,
-            'y_test': y_test,
-            'y_train_pred': y_train_pred,
-            'y_test_pred': y_test_pred,
-            'cv_scores': cv_scores,
-            'cv_mean': cv_scores.mean(),
-            'cv_std': cv_scores.std(),
-            'best_params': pipeline.named_steps['model'].get_params() if hasattr(pipeline, 'named_steps') else {}
-        }
-        
-        logger.info(f"  Training complete. CV Score: {result['cv_mean']:.4f} (+/- {result['cv_std']:.4f})")
-        
-        self.trained_models.append(result)
-        return result
-    
-    def _tune_hyperparameters_with_cv(self, pipeline, param_grid: Dict, X_train, y_train, cv_folds: int, pipeline_name: str = ""):
-        """Tune hyperparameters with custom CV fold count"""
-        scoring = self._get_scoring_metric()
-        n_jobs = self._safe_n_jobs_for_cv(pipeline_name)
-        param_list = list(ParameterGrid(param_grid))
-        n_combinations = len(param_list)
-        if n_combinations == 0:
-            pipeline.fit(X_train, y_train)
-            return pipeline
-        total_fits = n_combinations * cv_folds
-        logger.info(f"    Grid search: {cv_folds} folds × {n_combinations} candidates = {total_fits} fits")
-        best_score = -np.inf
-        best_params = None
-        best_estimator = None
-        for i, params in enumerate(param_list):
-            logger.info(f"    [{i+1}/{n_combinations}] Testing {params}...")
-            candidate = clone(pipeline)
-            candidate.set_params(**params)
-            scores = cross_val_score(
-                candidate, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=n_jobs
-            )
-            mean_score = float(np.mean(scores))
-            std_score = float(np.std(scores))
-            logger.info(f"        -> CV score: {mean_score:.4f} (+/- {std_score:.4f})")
-            if mean_score > best_score:
-                best_score = mean_score
-                best_params = params
-                best_estimator = candidate
-        logger.info(f"    Best parameters: {best_params}")
-        logger.info(f"    Best CV score: {best_score:.4f}")
-        best_estimator.fit(X_train, y_train)
-        return best_estimator
     
     def _train_single_pipeline(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series) -> Dict:
         """
@@ -355,7 +206,12 @@ class ModelTrainer:
         if pipeline_dict['hyperparameters']:
             logger.info("  Performing hyperparameter tuning...")
             pipeline = self._tune_hyperparameters(
-                pipeline, pipeline_dict['hyperparameters'], X_train, y_train, pipeline_dict['name']
+                pipeline,
+                pipeline_dict['hyperparameters'],
+                X_train,
+                y_train,
+                pipeline_name=pipeline_dict['name'],
+                stop_callback=stop_callback,
             )
         else:
             logger.info("  Training with default parameters...")
@@ -400,10 +256,21 @@ class ModelTrainer:
             return 1
         return -1
 
-    def _tune_hyperparameters(self, pipeline, param_grid: Dict, X_train, y_train, pipeline_name: str = ""):
-        """
-        Tune hyperparameters by iterating over the grid and logging each combination
-        so progress is visible in Execution Logs (avoids appearing stuck).
+    def _tune_hyperparameters(
+        self,
+        pipeline,
+        param_grid: Dict,
+        X_train,
+        y_train,
+        pipeline_name: str = "",
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ):
+        """Tune hyperparameters, checking for cooperative cancellation.
+
+        Iterates over the grid and logs each combination so progress is visible
+        in Execution Logs (avoids appearing stuck). If ``stop_callback`` is
+        provided and returns True, tuning stops early and the best-found (or
+        original) estimator is returned.
         """
         cv_folds = config.get('training.cv_folds', 5)
         scoring = self._get_scoring_metric()
@@ -419,6 +286,9 @@ class ModelTrainer:
         best_params = None
         best_estimator = None
         for i, params in enumerate(param_list):
+            if stop_callback and stop_callback():
+                logger.info("Stop requested during hyperparameter tuning. Using best parameters found so far.")
+                break
             logger.info(f"    [{i+1}/{n_combinations}] Testing {params}...")
             candidate = clone(pipeline)
             candidate.set_params(**params)
@@ -432,8 +302,14 @@ class ModelTrainer:
                 best_score = mean_score
                 best_params = params
                 best_estimator = candidate
-        logger.info(f"    Best parameters: {best_params}")
-        logger.info(f"    Best CV score: {best_score:.4f}")
+        if best_estimator is None:
+            # No candidate evaluated (e.g., stop requested immediately); fall back to original pipeline
+            logger.info("No hyperparameter candidates evaluated; using original pipeline parameters.")
+            best_estimator = pipeline
+        else:
+            logger.info(f"    Best parameters: {best_params}")
+            logger.info(f"    Best CV score: {best_score:.4f}")
+
         best_estimator.fit(X_train, y_train)
         return best_estimator
     
