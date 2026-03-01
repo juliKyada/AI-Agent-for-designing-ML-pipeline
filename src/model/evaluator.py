@@ -244,16 +244,19 @@ class ModelEvaluator:
                 "or 3) Using a dataset with better class distribution."
             )
         
+        if not self.evaluations:
+            raise ValueError("No pipeline evaluations available. Train at least one pipeline first.")
+
         # Sort by primary metric
         if self._is_classification():
             metric_key = 'test_accuracy'
         else:
             metric_key = 'test_r2'
-        
+
         best = max(self.evaluations, key=lambda x: x['metrics'][metric_key])
-        
+
         logger.info(f"Best pipeline: {best['pipeline_name']} ({metric_key}={best['metrics'][metric_key]:.4f})")
-        
+
         return best
     
     def get_pipelines_needing_improvement(self) -> List[Dict]:

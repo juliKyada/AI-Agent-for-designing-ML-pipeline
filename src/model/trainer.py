@@ -6,7 +6,7 @@ import pandas as pd
 import warnings
 from sklearn.model_selection import train_test_split, cross_val_score, ParameterGrid
 from sklearn.base import clone
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional, Callable
 from src.detection.task_detector import TaskType
 from src.utils.logger import get_logger
 from src.utils.config import get_config
@@ -153,7 +153,7 @@ class ModelTrainer:
                 break
             logger.info(f"Pipeline {i+1}/{len(pipelines)}")
             try:
-                result = self._train_single_pipeline(pipeline_dict, X_processed, y_processed)
+                result = self._train_single_pipeline(pipeline_dict, X_processed, y_processed, stop_callback=stop_callback)
             except Exception as e:
                 logger.error(f"Error training {pipeline_dict['name']}: {str(e)}")
                 continue
@@ -166,15 +166,22 @@ class ModelTrainer:
         logger.info(f"Successfully trained {len(self.trained_models)} pipelines")
         return self.trained_models
     
-    def _train_single_pipeline(self, pipeline_dict: Dict, X_processed: pd.DataFrame, y_processed: pd.Series) -> Dict:
+    def _train_single_pipeline(
+        self,
+        pipeline_dict: Dict,
+        X_processed: pd.DataFrame,
+        y_processed: pd.Series,
+        stop_callback: Optional[Callable[[], bool]] = None,
+    ) -> Dict:
         """
         Train a single pipeline with already-preprocessed data
-        
+
         Args:
             pipeline_dict: Pipeline configuration dictionary
             X_processed: Preprocessed features DataFrame
             y_processed: Preprocessed target Series
-            
+            stop_callback: Optional callable that returns True when training should stop
+
         Returns:
             Dictionary with training results
         """
