@@ -1,0 +1,76 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{balance}
+
+\title{A Study of Metadata-Based Decision Mechanisms for Machine Learning Pipeline Selection}
+\author{\IEEEauthorblockN{Juli Kyada , Harsh Kakadiya}
+\IEEEauthorblockA{Department of Artificial Intelligence and Machine Learning\\
+Charotar University of Science and Technology, Changa\\
+Email: julikyada293@gmail.com, harshkakadiya128@gmail.com}
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Designing effective machine learning pipelines typically requires choosing preprocessing steps, algorithms, and hyperparameters. This paper studies how dataset metadata---structural and statistical summaries of the data---can drive automated decisions for pipeline selection. We review literature on automated machine learning (AutoML), meta-learning for algorithm selection, and data profiling for ML, and we discuss how metadata-based mechanisms can reduce the search space and improve pipeline design without exhaustive evaluation. Our work is motivated by and aligned with a practical system that extracts metadata from tabular data and uses it for task detection, preprocessing design, and candidate pipeline generation.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Automated machine learning, AutoML, metadata, pipeline selection, meta-learning, algorithm selection, data profiling, preprocessing selection.
+\end{IEEEkeywords}
+
+%==============================================================================
+\section{Introduction}
+\label{sec:intro}
+
+The design of machine learning pipelines involves selecting preprocessing steps, learning algorithms, and hyperparameters. Doing this well typically requires domain knowledge and iterative experimentation. Automated approaches either search over a large space of pipelines (e.g., via Bayesian optimization or genetic programming) or use prior knowledge---often in the form of dataset \emph{metadata}---to recommend or prioritize configurations. This paper studies \emph{metadata-based decision mechanisms} for pipeline selection: we examine how structural and statistical summaries of the data (e.g., number of samples, feature types, target statistics, missingness) can be used to decide or constrain which pipelines are built and evaluated. Our study is aligned with a practical system that extracts such metadata from tabular data and uses it for task detection, preprocessing design, and candidate pipeline generation. The remainder of the paper is organized as follows: Section~\ref{sec:literature} reviews related work; Section~\ref{sec:methodology} outlines methodology; Section~\ref{sec:experiments} presents experiments; Section~\ref{sec:conclusion} concludes.
+
+%==============================================================================
+\section{Literature Review}
+\label{sec:literature}
+
+We review how \emph{metadata}---summaries of dataset structure and statistics---is used to decide or constrain pipeline design, and position our work within AutoML and meta-learning.
+
+\subsection{AutoML, Meta-Learning, and Metadata}
+
+AutoML systems treat pipeline design as search or optimization. \textbf{Auto-WEKA}~\cite{thornton2013auto} combines algorithm and hyperparameter selection via Bayesian optimization; \textbf{Auto-sklearn}~\cite{feurer2015efficient} uses meta-learning on past datasets to warm-start search; \textbf{TPOT}~\cite{olson2016tpot} evolves pipelines with genetic programming; \textbf{FLAML}~\cite{wang2021flaml} focuses on efficient search. In these systems, dataset characteristics often inform strategy, but selection is largely \emph{performance-based} after evaluation. By contrast, \emph{meta-learning for algorithm selection} uses \textbf{meta-features} (a form of metadata) to recommend algorithms without evaluating all candidates. \textbf{StatLog}~\cite{michie1994machine} related dataset properties to algorithm performance; metalearning surveys~\cite{leite2012survey,brazil2010metalearning} show how problem characteristics can drive algorithm choice. Thus metadata can narrow the candidate set and improve over fixed defaults.
+
+\subsection{Metadata for Preprocessing and Task Detection}
+
+Data profiling provides metadata such as schema, missingness, cardinality, and quality metrics; data-centric AI~\cite{sambasivan2021data} stresses the importance of data understanding. In pipelines, this metadata drives \emph{preprocessing}: imputation and scaling choices from missingness and outliers, encoding (e.g., one-hot vs. target) from categorical cardinality. \textbf{Task detection} (classification vs. regression) from target statistics (dtype, number of unique values) is a metadata-based decision used widely to route to the right model family. Feature metadata (numerical vs. categorical, from dtypes and cardinality thresholds) underlies tools like ColumnTransformer. The open question is how far metadata can be extended to \emph{model} selection and hyperparameter defaults.
+
+\subsection{Gap and Contribution}
+
+Existing work shows that metadata supports algorithm recommendation and already drives task detection and preprocessing; full pipeline search remains expensive. Integrated systems that use a single metadata extractor for \emph{both} preprocessing \emph{and} model (candidate) selection are less common. This paper studies such mechanisms in a system that extracts metadata (size, feature types, target and quality statistics) and uses it for task detection, preprocessor design, and potentially for filtering or ranking candidate models.
+
+%==============================================================================
+\section{Methodology}
+\label{sec:methodology}
+% TODO: Describe your metadata schema, extraction, and decision rules.
+Placeholder: describe metadata extraction, task detection, and pipeline generation; optional model selection heuristics from metadata.
+
+%==============================================================================
+\section{Experiments and Results}
+\label{sec:experiments}
+% TODO: Experiments and results.
+Placeholder.
+
+%==============================================================================
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+% TODO: Discussion and conclusion.
+Placeholder.
+
+%==============================================================================
+\balance
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

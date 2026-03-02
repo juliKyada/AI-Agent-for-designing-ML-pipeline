@@ -207,12 +207,11 @@ class PipelineOptimizer:
         
         if not pipelines_with_issues:
             logger.info("All pipelines are performing well!")
+            best = max(evaluations, key=lambda x: x['metrics'].get('test_accuracy', x['metrics'].get('test_r2', 0))) if evaluations else None
             return {
                 'needs_improvement': False,
                 'message': 'All pipelines meet performance criteria',
-                'best_pipeline': max(evaluations, 
-                                    key=lambda x: x['metrics'].get('test_accuracy', 
-                                                                   x['metrics'].get('test_r2', 0)))
+                'best_pipeline': best,
             }
         
         logger.info(f"Found {len(pipelines_with_issues)} pipelines needing improvement")
