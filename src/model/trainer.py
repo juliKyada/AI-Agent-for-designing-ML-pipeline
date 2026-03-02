@@ -320,6 +320,56 @@ class ModelTrainer:
         best_estimator.fit(X_train, y_train)
         return best_estimator
     
+    def retrain_pipelines(self, pipeline_names: List[str], trained_models: List[Dict], X: pd.DataFrame, y: pd.Series):
+        """
+        Retrain specific pipelines with (potentially) modified hyperparameters
+        
+        Args:
+            pipeline_names: List of pipeline names to retrain
+            trained_models: List of all trained models
+            X: Features DataFrame
+            y: Target Series
+        """
+        logger.info("Retraining pipelines with modified hyperparameters...")
+        
+        for tm in trained_models:
+            if tm['pipeline_name'] not in pipeline_names:
+                continue
+            
+            try:
+                logger.info(f"Retraining: {tm['pipeline_name']}")
+                
+                # Get the pipeline object
+                pipeline = tm['pipeline']
+                
+                # Refit the pipeline with modified hyperparameters using existing train/test data
+                X_train = tm['X_train']
+                X_test = tm['X_test']
+                y_train = tm['y_train']
+                y_test = tm['y_test']
+                
+                # Refit the pipeline
+                pipeline.fit(X_train, y_train)
+                
+                # Update predictions with new model
+                tm['y_train_pred'] = pipeline.predict(X_train)
+                tm['y_test_pred'] = pipeline.predict(X_test)
+                
+                # Also update cv scores
+                cv_folds = config.get('training.cv_folds', 5)
+                scoring = self._get_scoring_metric()
+                cv_n_jobs = self._safe_n_jobs_for_cv(tm['pipeline_name'])
+                cv_scores = cross_val_score(pipeline, X_train, y_train, cv=cv_folds, scoring=scoring, n_jobs=cv_n_jobs)
+                
+                tm['cv_scores'] = cv_scores
+                tm['cv_mean'] = cv_scores.mean()
+                tm['cv_std'] = cv_scores.std()
+                
+                logger.info(f"  Retraining complete for {tm['pipeline_name']} (CV: {tm['cv_mean']:.4f})")
+                
+            except Exception as e:
+                logger.info(f"  Warning: Could not retrain {tm['pipeline_name']}: {str(e)}")
+    
     def _get_scoring_metric(self) -> str:
         """Get appropriate scoring metric for the task"""
         if self._is_classification():

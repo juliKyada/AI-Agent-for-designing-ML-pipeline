@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge, Lasso
+from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge, Lasso, ElasticNet
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.ensemble import (RandomForestClassifier, RandomForestRegressor,
                                GradientBoostingClassifier, GradientBoostingRegressor)
@@ -180,7 +180,7 @@ class RuleBasedModelSelector:
             min_class_ratio = min(class_balance.values())
             is_imbalanced = min_class_ratio < 0.1
         
-        # Rule 1: For tiny datasets, prefer simple models
+        # Rule 1: For tiny datasets, prefer simple models but include diverse options
         if self.dataset_size == DatasetSize.TINY:
             recommendations.append(ModelRecommendation(
                 name="Logistic Regression",
@@ -206,6 +206,55 @@ class RuleBasedModelSelector:
                     'model__min_samples_leaf': [2, 4]
                 },
                 description="Single decision tree with constraints"
+            ))
+            
+            # Add more models for diversity even on tiny datasets
+            recommendations.append(ModelRecommendation(
+                name="Random Forest",
+                model_class=RandomForestClassifier,
+                priority=3,
+                reason="Light ensemble for improved robustness on small data",
+                hyperparameters={
+                    'model__n_estimators': [50, 100],
+                    'model__max_depth': [5, 10],
+                    'model__min_samples_split': [5, 10]
+                },
+                description="Ensemble of decision trees"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Gaussian Naive Bayes",
+                model_class=GaussianNB,
+                priority=4,
+                reason="Probabilistic model good for small datasets",
+                hyperparameters={},
+                description="Probabilistic classifier based on Bayes theorem"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Ridge Logistic Regression",
+                model_class=LogisticRegression,
+                priority=5,
+                reason="Alternative linear model with different regularization",
+                hyperparameters={
+                    'model__C': [0.001, 0.01, 0.1],
+                    'model__penalty': ['l1', 'l2'],
+                    'model__solver': ['saga'],
+                    'model__max_iter': [1000]
+                },
+                description="Logistic regression with L1/L2 options"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="KNN Classifier",
+                model_class=KNeighborsClassifier,
+                priority=6,
+                reason="Non-parametric model for local pattern matching",
+                hyperparameters={
+                    'model__n_neighbors': [3, 5, 7, 9],
+                    'model__weights': ['uniform', 'distance']
+                },
+                description="K-Nearest Neighbors classifier"
             ))
         
         # Rule 2: For small to medium datasets, use ensemble methods
@@ -238,11 +287,26 @@ class RuleBasedModelSelector:
                 description="Gradient boosting with regularization"
             ))
             
+            recommendations.append(ModelRecommendation(
+                name="LightGBM",
+                model_class=LGBMClassifier,
+                priority=3,
+                reason="Fast gradient boosting alternative for good performance",
+                hyperparameters={
+                    'model__n_estimators': [100, 200],
+                    'model__max_depth': [5, 10],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__num_leaves': [31, 50],
+                    'model__verbosity': [-1]
+                },
+                description="Optimized gradient boosting"
+            ))
+            
             # Add logistic regression as baseline
             recommendations.append(ModelRecommendation(
                 name="Logistic Regression",
                 model_class=LogisticRegression,
-                priority=4,
+                priority=5,
                 reason="Baseline linear model for comparison",
                 hyperparameters={
                     'model__C': [0.01, 0.1, 1.0, 10.0],
@@ -250,6 +314,42 @@ class RuleBasedModelSelector:
                     'model__max_iter': [1000]
                 },
                 description="Linear baseline model"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Gradient Boosting",
+                model_class=GradientBoostingClassifier,
+                priority=4,
+                reason="Alternative gradient boosting with different hyperparameters",
+                hyperparameters={
+                    'model__n_estimators': [100, 150],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__max_depth': [3, 5],
+                    'model__subsample': [0.8, 1.0]
+                },
+                description="Sklearn's gradient boosting classifier"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="KNN Classifier",
+                model_class=KNeighborsClassifier,
+                priority=6,
+                reason="Local pattern matching for moderate datasets",
+                hyperparameters={
+                    'model__n_neighbors': [3, 5, 7, 9],
+                    'model__weights': ['uniform', 'distance'],
+                    'model__p': [1, 2]
+                },
+                description="K-Nearest Neighbors classifier"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Naive Bayes",
+                model_class=GaussianNB,
+                priority=7,
+                reason="Fast probabilistic classifier",
+                hyperparameters={},
+                description="Gaussian Naive Bayes classifier"
             ))
         
         # Rule 3: For large datasets, use scalable algorithms
@@ -270,9 +370,37 @@ class RuleBasedModelSelector:
             ))
             
             recommendations.append(ModelRecommendation(
+                name="XGBoost",
+                model_class=XGBClassifier,
+                priority=2,
+                reason="Scalable gradient boosting for large structured data",
+                hyperparameters={
+                    'model__n_estimators': [100, 200],
+                    'model__max_depth': [5, 7],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__tree_method': ['hist']
+                },
+                description="Gradient boosting with histogram-based optimization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Gradient Boosting",
+                model_class=GradientBoostingClassifier,
+                priority=3,
+                reason="Alternative gradient boosting with different strengths",
+                hyperparameters={
+                    'model__n_estimators': [100, 150],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__max_depth': [5, 7],
+                    'model__subsample': [0.8, 1.0]
+                },
+                description="Sklearn's gradient boosting classifier"
+            ))
+            
+            recommendations.append(ModelRecommendation(
                 name="Logistic Regression",
                 model_class=LogisticRegression,
-                priority=2,
+                priority=4,
                 reason="Scalable linear model for large data",
                 hyperparameters={
                     'model__C': [0.1, 1.0, 10.0],
@@ -281,6 +409,54 @@ class RuleBasedModelSelector:
                     'model__max_iter': [500]
                 },
                 description="Linear model with SAG solver for large data"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Random Forest",
+                model_class=RandomForestClassifier,
+                priority=5,
+                reason="Parallelized ensemble for large datasets",
+                hyperparameters={
+                    'model__n_estimators': [100, 150],
+                    'model__max_depth': [15, 20],
+                    'model__min_samples_split': [10]
+                },
+                description="Scalable bagging ensemble"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Ridge Classifier",
+                model_class=LogisticRegression,
+                priority=6,
+                reason="Alternative regularized linear model",
+                hyperparameters={
+                    'model__C': [0.01, 0.1, 1.0],
+                    'model__penalty': ['l1'],
+                    'model__solver': ['saga'],
+                    'model__max_iter': [500]
+                },
+                description="Linear model with L1 regularization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="KNN Classifier",
+                model_class=KNeighborsClassifier,
+                priority=7,
+                reason="Efficient approximate KNN for large datasets",
+                hyperparameters={
+                    'model__n_neighbors': [5, 7, 10],
+                    'model__weights': ['uniform', 'distance']
+                },
+                description="K-Nearest Neighbors with sampling"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Naive Bayes",
+                model_class=GaussianNB,
+                priority=8,
+                reason="Lightweight probabilistic classifier for quick baseline",
+                hyperparameters={},
+                description="Gaussian Naive Bayes classifier"
             ))
         
         # Rule 4: Binary vs Multiclass considerations
@@ -345,7 +521,7 @@ class RuleBasedModelSelector:
         n_samples = self.metadata['dataset']['n_samples']
         n_features = self.metadata['dataset']['n_features']
         
-        # Rule 1: For tiny datasets, prefer simple models
+        # Rule 1: For tiny datasets, prefer simple models but include diverse options
         if self.dataset_size == DatasetSize.TINY:
             recommendations.append(ModelRecommendation(
                 name="Linear Regression",
@@ -365,6 +541,54 @@ class RuleBasedModelSelector:
                     'model__alpha': [0.1, 1.0, 10.0, 100.0]
                 },
                 description="Linear regression with L2 regularization"
+            ))
+            
+            # Add more models for diversity even on tiny datasets
+            recommendations.append(ModelRecommendation(
+                name="Decision Tree",
+                model_class=DecisionTreeRegressor,
+                priority=3,
+                reason="Non-linear model for capturing patterns in small data",
+                hyperparameters={
+                    'model__max_depth': [5, 10],
+                    'model__min_samples_split': [5, 10]
+                },
+                description="Single decision tree with constraints"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Lasso Regression",
+                model_class=Lasso,
+                priority=4,
+                reason="Feature selection via L1 regularization",
+                hyperparameters={
+                    'model__alpha': [0.01, 0.1, 1.0, 10.0]
+                },
+                description="Linear regression with L1 regularization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="ElasticNet Regression",
+                model_class=ElasticNet,
+                priority=5,
+                reason="Balanced L1 and L2 regularization",
+                hyperparameters={
+                    'model__alpha': [0.01, 0.1, 1.0],
+                    'model__l1_ratio': [0.2, 0.5, 0.8]
+                },
+                description="Combined L1/L2 regularization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="KNN Regressor",
+                model_class=KNeighborsRegressor,
+                priority=6,
+                reason="Non-parametric local interpolation",
+                hyperparameters={
+                    'model__n_neighbors': [3, 5, 7],
+                    'model__weights': ['uniform', 'distance']
+                },
+                description="K-Nearest Neighbors regressor"
             ))
         
         # Rule 2: For small to medium datasets, use ensemble methods
@@ -397,16 +621,71 @@ class RuleBasedModelSelector:
                 description="Gradient boosting with regularization"
             ))
             
+            recommendations.append(ModelRecommendation(
+                name="LightGBM",
+                model_class=LGBMRegressor,
+                priority=3,
+                reason="Fast gradient boosting alternative",
+                hyperparameters={
+                    'model__n_estimators': [100, 200],
+                    'model__max_depth': [5, 10],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__num_leaves': [31, 50],
+                    'model__verbosity': [-1]
+                },
+                description="Optimized gradient boosting"
+            ))
+            
             # Add linear baseline
             recommendations.append(ModelRecommendation(
                 name="Ridge Regression",
                 model_class=Ridge,
-                priority=4,
+                priority=5,
                 reason="Baseline linear model for comparison",
                 hyperparameters={
                     'model__alpha': [0.1, 1.0, 10.0, 100.0]
                 },
                 description="Linear baseline with regularization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Gradient Boosting",
+                model_class=GradientBoostingRegressor,
+                priority=4,
+                reason="Alternative gradient boosting implementation",
+                hyperparameters={
+                    'model__n_estimators': [100, 150],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__max_depth': [3, 5],
+                    'model__subsample': [0.8, 1.0]
+                },
+                description="Sklearn's gradient boosting regressor"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="KNN Regressor",
+                model_class=KNeighborsRegressor,
+                priority=6,
+                reason="Local pattern matching for regression",
+                hyperparameters={
+                    'model__n_neighbors': [3, 5, 7, 9],
+                    'model__weights': ['uniform', 'distance'],
+                    'model__p': [1, 2]
+                },
+                description="K-Nearest Neighbors regressor"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="SVR (RBF kernel)",
+                model_class=SVR,
+                priority=7,
+                reason="Support Vector Regression with non-linear kernel",
+                hyperparameters={
+                    'model__C': [1.0, 10.0, 100.0],
+                    'model__kernel': ['rbf'],
+                    'model__gamma': ['scale', 'auto']
+                },
+                description="Support Vector Regressor"
             ))
         
         # Rule 3: For large datasets, use scalable algorithms
@@ -427,15 +706,94 @@ class RuleBasedModelSelector:
             ))
             
             recommendations.append(ModelRecommendation(
+                name="XGBoost",
+                model_class=XGBRegressor,
+                priority=2,
+                reason="Scalable gradient boosting for large structured data",
+                hyperparameters={
+                    'model__n_estimators': [100, 200],
+                    'model__max_depth': [5, 7],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__tree_method': ['hist']
+                },
+                description="Gradient boosting with histogram-based optimization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Gradient Boosting",
+                model_class=GradientBoostingRegressor,
+                priority=3,
+                reason="Alternative gradient boosting with different strengths",
+                hyperparameters={
+                    'model__n_estimators': [100, 150],
+                    'model__learning_rate': [0.01, 0.1],
+                    'model__max_depth': [5, 7],
+                    'model__subsample': [0.8, 1.0]
+                },
+                description="Sklearn's gradient boosting regressor"
+            ))
+            
+            recommendations.append(ModelRecommendation(
                 name="Ridge Regression",
                 model_class=Ridge,
-                priority=2,
+                priority=4,
                 reason="Scalable linear model for large data",
                 hyperparameters={
                     'model__alpha': [0.1, 1.0, 10.0],
                     'model__solver': ['saga']
                 },
                 description="Linear model with SAG solver"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Random Forest",
+                model_class=RandomForestRegressor,
+                priority=5,
+                reason="Parallelized ensemble for large datasets",
+                hyperparameters={
+                    'model__n_estimators': [100, 150],
+                    'model__max_depth': [15, 20],
+                    'model__min_samples_split': [10]
+                },
+                description="Scalable bagging ensemble"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="Lasso Regression",
+                model_class=Lasso,
+                priority=6,
+                reason="Feature selection via L1 regularization for large data",
+                hyperparameters={
+                    'model__alpha': [0.001, 0.01, 0.1],
+                    'model__max_iter': [1000]
+                },
+                description="Linear regression with L1 regularization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="ElasticNet Regression",
+                model_class=ElasticNet,
+                priority=7,
+                reason="Balanced L1 and L2 for large data",
+                hyperparameters={
+                    'model__alpha': [0.001, 0.01, 0.1],
+                    'model__l1_ratio': [0.5],
+                    'model__max_iter': [1000]
+                },
+                description="Combined L1/L2 regularization"
+            ))
+            
+            recommendations.append(ModelRecommendation(
+                name="SVR (RBF kernel)",
+                model_class=SVR,
+                priority=8,
+                reason="Support Vector Regression for large data",
+                hyperparameters={
+                    'model__C': [1.0, 10.0],
+                    'model__kernel': ['rbf'],
+                    'model__gamma': ['scale']
+                },
+                description="Support Vector Regressor"
             ))
         
         # Rule 4: High-dimensional data
