@@ -3,7 +3,7 @@ AI Agent for orchestrating the entire ML pipeline automation process
 """
 import pandas as pd
 from pathlib import Path
-from typing import Union, Optional, Dict, Any, Callable
+from typing import Union, Optional, Dict, Any, Callable, List
 from src.data import DataLoader, MetadataExtractor
 from src.detection import TaskDetector, TaskType
 from src.pipeline import PipelineGenerator, PipelineOptimizer
@@ -87,6 +87,7 @@ class PipelineAgent:
             self._evaluate_models()
             
             # Step 7: Check for Issues and Optimize
+            self.max_iterations_param = max_iterations  # Store for optimizer
             improvement_plan = self._check_and_plan_improvements()
             
             # Step 8: Get Best Pipeline
@@ -139,7 +140,7 @@ class PipelineAgent:
         else:
             raise ValueError("Either dataset_path or dataframe must be provided")
         
-        logger.info(f"✓ Data loaded: {len(self.X)} samples, {len(self.X.columns)} features")
+        logger.info(f"[OK] Data loaded: {len(self.X)} samples, {len(self.X.columns)} features")
     
     def _extract_metadata(self):
         """Step 2: Extract metadata"""
@@ -148,7 +149,7 @@ class PipelineAgent:
         logger.info("-" * 80)
         
         self.metadata = self.metadata_extractor.extract(self.X, self.y)
-        logger.info("✓ Metadata extracted")
+        logger.info("[OK] Metadata extracted")
         logger.info(self.metadata_extractor.get_summary())
     
     def _detect_task(self):
@@ -158,7 +159,7 @@ class PipelineAgent:
         logger.info("-" * 80)
         
         self.task_type, confidence, reason = self.task_detector.detect(self.y, self.metadata)
-        logger.info(f"✓ Task detected: {self.task_type.value.upper()}")
+        logger.info(f"[OK] Task detected: {self.task_type.value.upper()}")
         logger.info(f"  Confidence: {confidence:.2%}")
         logger.info(f"  Reason: {reason}")
     
@@ -170,7 +171,7 @@ class PipelineAgent:
         
         self.pipeline_generator = PipelineGenerator()
         self.pipelines = self.pipeline_generator.generate(self.task_type, self.metadata, n_pipelines=n_pipelines)
-        logger.info(f"✓ Generated {len(self.pipelines)} candidate pipelines")
+        logger.info(f"[OK] Generated {len(self.pipelines)} candidate pipelines")
     
     def _train_models(self, stop_callback: Optional[Callable[[], bool]] = None):
         """Step 5: Train all models
@@ -189,7 +190,7 @@ class PipelineAgent:
             self.y,
             stop_callback=stop_callback,
         )
-        logger.info(f"✓ Trained {len(self.trained_models)} models")
+        logger.info(f"[OK] Trained {len(self.trained_models)} models")
     
     def _evaluate_models(self):
         """Step 6: Evaluate all models"""
@@ -199,23 +200,212 @@ class PipelineAgent:
         
         self.model_evaluator = ModelEvaluator(self.task_type)
         self.evaluations = self.model_evaluator.evaluate_all(self.trained_models)
-        logger.info(f"✓ Evaluated {len(self.evaluations)} pipelines")
+        logger.info(f"[OK] Evaluated {len(self.evaluations)} pipelines")
     
     def _check_and_plan_improvements(self):
-        """Step 7: Check for issues and plan improvements"""
+        """Step 7: Check for issues and plan improvements with iterative optimization"""
         logger.info("")
         logger.info("STEP 7: Checking for Issues & Planning Improvements")
         logger.info("-" * 80)
         
-        self.pipeline_optimizer = PipelineOptimizer(self.task_type)
-        improvement_plan = self.pipeline_optimizer.generate_improvement_plan(self.evaluations)
+        # Store max_iterations for use in optimization
+        self.max_iterations = getattr(self, 'max_iterations_param', None) or 3
+        self.pipeline_optimizer = PipelineOptimizer(self.task_type, max_iterations=self.max_iterations)
         
-        if improvement_plan['needs_improvement']:
-            logger.info(f"✓ Improvement plan generated for {len(improvement_plan['pipelines_to_improve'])} pipelines")
-        else:
-            logger.info("✓ All pipelines performing well - no improvements needed")
+        # Get initial best score
+        initial_best_score = max(
+            e['metrics'].get('test_accuracy', e['metrics'].get('test_r2', 0)) 
+            for e in self.evaluations
+        ) if self.evaluations else 0
         
-        return improvement_plan
+        recent_improvements = []
+        improvement_plan = None
+        iteration = 0
+        
+        # Iterative optimization loop
+        for iteration in range(1, self.max_iterations + 1):
+            logger.info(f"")
+            logger.info(f"{'=' * 80}")
+            logger.info(f"OPTIMIZATION ITERATION {iteration}/{self.max_iterations}")
+            logger.info(f"{'=' * 80}")
+            
+            # Generate improvement plan for current state
+            improvement_plan = self.pipeline_optimizer.generate_improvement_plan(self.evaluations)
+            
+            if not improvement_plan['needs_improvement']:
+                logger.info("[OK] All pipelines performing well - optimization complete")
+                break
+            
+            # Apply improvements to problematic pipelines
+            improved_pipeline_names = self._apply_improvements(improvement_plan)
+            
+            if not improved_pipeline_names:
+                logger.info("No improvements could be applied")
+                break
+            
+            # Re-train improved pipelines
+            logger.info(f"Re-training {len(improved_pipeline_names)} improved pipelines...")
+            self.model_trainer.retrain_pipelines(improved_pipeline_names, self.trained_models, self.X, self.y)
+            
+            # Re-evaluate all pipelines
+            logger.info("Re-evaluating pipelines...")
+            self.evaluations = self.model_evaluator.evaluate_all(self.trained_models)
+            
+            # Calculate improvement
+            current_best_score = max(
+                e['metrics'].get('test_accuracy', e['metrics'].get('test_r2', 0)) 
+                for e in self.evaluations
+            ) if self.evaluations else 0
+            
+            improvement = current_best_score - initial_best_score
+            recent_improvements.append(improvement)
+            
+            logger.info(f"Iteration {iteration} Results:")
+            logger.info(f"  Previous best score: {initial_best_score:.4f}")
+            logger.info(f"  Current best score: {current_best_score:.4f}")
+            logger.info(f"  Improvement: {improvement:+.4f}")
+            
+            # Check if should continue
+            if not self.pipeline_optimizer.should_continue_optimization(iteration, recent_improvements):
+                logger.info(f"Stopping optimization")
+                break
+            
+            initial_best_score = current_best_score
+        
+        logger.info(f"")
+        logger.info(f"Optimization completed after {iteration} iterations")
+        
+        return improvement_plan or self.pipeline_optimizer.generate_improvement_plan(self.evaluations)
+    
+    def _apply_improvements(self, improvement_plan: Dict) -> List[str]:
+        """Apply improvements to problematic pipelines by adjusting hyperparameters"""
+        improved_names = []
+        
+        if not improvement_plan['needs_improvement']:
+            return improved_names
+        
+        for pipeline_improvement in improvement_plan['pipelines_to_improve']:
+            pipeline_name = pipeline_improvement['pipeline_name']
+            issues = pipeline_improvement['issues']
+            
+            # Find the trained model for this pipeline
+            trained_model = None
+            for tm in self.trained_models:
+                if tm['pipeline_name'] == pipeline_name:
+                    trained_model = tm
+                    break
+            
+            if not trained_model:
+                continue
+            
+            # Get model instance
+            model = trained_model['trained_model']
+            improvement_made = False
+            
+            # Apply improvements based on issues detected
+            for issue in issues:
+                if 'overfitting' in issue.lower():
+                    improvement_made = self._adjust_for_overfitting(model, trained_model) or improvement_made
+                elif 'underfitting' in issue.lower():
+                    improvement_made = self._adjust_for_underfitting(model, trained_model) or improvement_made
+                elif 'low performance' in issue.lower():
+                    improvement_made = self._adjust_for_low_performance(model, trained_model) or improvement_made
+            
+            if improvement_made:
+                improved_names.append(pipeline_name)
+                logger.info(f"  Applied improvements to: {pipeline_name}")
+        
+        return improved_names
+    
+    def _adjust_for_overfitting(self, model, trained_model: Dict) -> bool:
+        """Adjust hyperparameters to reduce overfitting"""
+        try:
+            # Try to access model pipeline
+            if hasattr(model, 'named_steps'):
+                ml_model = model.named_steps.get('model')
+            else:
+                ml_model = model
+            
+            if ml_model is None:
+                return False
+            
+            # Adjust regularization based on model type
+            if hasattr(ml_model, 'C'):  # Logistic Regression
+                ml_model.C = max(0.001, ml_model.C * 0.5)  # Increase regularization
+                logger.info(f"    Reduced C (increased regularization) to {ml_model.C}")
+                return True
+            elif hasattr(ml_model, 'max_depth') and hasattr(ml_model, 'min_samples_leaf'):  # Tree-based
+                original_depth = ml_model.max_depth
+                ml_model.max_depth = max(3, (ml_model.max_depth or 10) - 2) if ml_model.max_depth else 5
+                ml_model.min_samples_leaf = min(ml_model.min_samples_leaf + 2, 10) if hasattr(ml_model, 'min_samples_leaf') else 5
+                logger.info(f"    Reduced max_depth from {original_depth} to {ml_model.max_depth}")
+                return True
+            elif hasattr(ml_model, 'alpha'):  # Ridge/Lasso
+                ml_model.alpha = ml_model.alpha * 2  # Increase regularization
+                logger.info(f"    Increased alpha to {ml_model.alpha}")
+                return True
+        except Exception as e:
+            logger.info(f"    Could not adjust hyperparameters: {str(e)}")
+        
+        return False
+    
+    def _adjust_for_underfitting(self, model, trained_model: Dict) -> bool:
+        """Adjust hyperparameters to improve underfitting"""
+        try:
+            if hasattr(model, 'named_steps'):
+                ml_model = model.named_steps.get('model')
+            else:
+                ml_model = model
+            
+            if ml_model is None:
+                return False
+            
+            # Reduce regularization or increase complexity
+            if hasattr(ml_model, 'C'):  # Logistic Regression
+                ml_model.C = ml_model.C * 2  # Decrease regularization
+                logger.info(f"    Increased C (decreased regularization) to {ml_model.C}")
+                return True
+            elif hasattr(ml_model, 'max_depth'):  # Tree-based
+                original_depth = ml_model.max_depth
+                ml_model.max_depth = (ml_model.max_depth or 10) + 2
+                if hasattr(ml_model, 'min_samples_leaf'):
+                    ml_model.min_samples_leaf = max(1, ml_model.min_samples_leaf - 1)
+                logger.info(f"    Increased max_depth from {original_depth} to {ml_model.max_depth}")
+                return True
+            elif hasattr(ml_model, 'alpha'):  # Ridge/Lasso
+                ml_model.alpha = max(0.0001, ml_model.alpha * 0.5)  # Decrease regularization
+                logger.info(f"    Decreased alpha to {ml_model.alpha}")
+                return True
+        except Exception as e:
+            logger.info(f"    Could not adjust hyperparameters: {str(e)}")
+        
+        return False
+    
+    def _adjust_for_low_performance(self, model, trained_model: Dict) -> bool:
+        """Adjust hyperparameters to improve low performance"""
+        try:
+            if hasattr(model, 'named_steps'):
+                ml_model = model.named_steps.get('model')
+            else:
+                ml_model = model
+            
+            if ml_model is None:
+                return False
+            
+            # Try to improve performance by tuning key parameters
+            if hasattr(ml_model, 'n_estimators'):  # Ensemble methods
+                ml_model.n_estimators = min(ml_model.n_estimators + 50, 500)
+                logger.info(f"    Increased n_estimators to {ml_model.n_estimators}")
+                return True
+            elif hasattr(ml_model, 'C'):  # Logistic Regression (try wider search)
+                # Try a balanced C value
+                ml_model.C = 1.0
+                logger.info(f"    Reset C to balanced value {ml_model.C}")
+                return True
+        except Exception as e:
+            logger.info(f"    Could not adjust hyperparameters: {str(e)}")
+        
+        return False
     
     def _get_best_pipeline(self):
         """Step 8: Get the best pipeline"""
@@ -224,7 +414,7 @@ class PipelineAgent:
         logger.info("-" * 80)
         
         best = self.model_evaluator.get_best_pipeline()
-        logger.info(f"✓ Best pipeline: {best['pipeline_name']}")
+        logger.info(f"[OK] Best pipeline: {best['pipeline_name']}")
         
         return best
     
@@ -235,7 +425,7 @@ class PipelineAgent:
         logger.info("-" * 80)
         
         explanation = self._create_detailed_explanation(best_pipeline, improvement_plan)
-        logger.info("✓ Explanation generated")
+        logger.info("[OK] Explanation generated")
         
         return explanation
     
@@ -301,7 +491,7 @@ class PipelineAgent:
         if best_pipeline['issues']:
             lines.append("**5. DETECTED ISSUES:**  ")
             for issue in best_pipeline['issues']:
-                lines.append(f"   ⚠ {issue}")
+                lines.append(f"   [!] {issue}")
             sep()
             
             lines.append("**6. RECOMMENDATIONS:**  ")
@@ -315,8 +505,8 @@ class PipelineAgent:
             sep()
         else:
             lines.append("**5. STATUS:**  ")
-            lines.append("   ✓ No significant issues detected")
-            lines.append("   ✓ Pipeline meets performance criteria")
+            lines.append("   [OK] No significant issues detected")
+            lines.append("   [OK] Pipeline meets performance criteria")
             sep()
         
         # 7. Conclusion

@@ -214,9 +214,9 @@ def main():
                 max_iterations = st.slider(
                     "Max Optimization Iterations",
                     min_value=1,
-                    max_value=20,
-                    value=10,
-                    help="Reserved for future multi-round optimization (currently not used)."
+                    max_value=5,
+                    value=3,
+                    help="Maximum rounds of optimization to improve pipeline quality."
                 )
                 
                 n_pipelines = st.slider(

@@ -15,14 +15,16 @@ config = get_config()
 class PipelineOptimizer:
     """Optimizes pipelines by addressing detected issues"""
     
-    def __init__(self, task_type: TaskType):
+    def __init__(self, task_type: TaskType, max_iterations: int = None):
         """
         Initialize PipelineOptimizer
         
         Args:
             task_type: Type of ML task
+            max_iterations: Maximum optimization iterations (overrides config)
         """
         self.task_type = task_type
+        self.max_iterations = max_iterations or config.get('pipeline.max_iterations', 5)
         self.optimization_history = []
     
     def optimize(self, evaluation: Dict, X: pd.DataFrame, y: pd.Series) -> Dict:
@@ -148,13 +150,12 @@ class PipelineOptimizer:
         Returns:
             Boolean indicating whether to continue
         """
-        max_iterations = config.get('pipeline.max_iterations', 10)
         early_stopping = config.get('pipeline.early_stopping_rounds', 3)
         min_improvement = config.get('pipeline.min_improvement', 0.01)
         
         # Check max iterations
-        if iteration >= max_iterations:
-            logger.info(f"Reached maximum iterations ({max_iterations})")
+        if iteration >= self.max_iterations:
+            logger.info(f"Reached maximum iterations ({self.max_iterations})")
             return False
         
         # Check early stopping
