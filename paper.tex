@@ -20,7 +20,7 @@
    \maketitle
 
    \begin{abstract}
-   Designing effective machine learning pipelines typically requires choosing preprocessing steps, algorithms, and hyperparameters. This paper studies how dataset metadata---structural and statistical summaries of the data---can drive automated decisions for pipeline selection. We review literature on automated machine learning (AutoML), meta-learning for algorithm selection, and data profiling for ML, and we discuss how metadata-based mechanisms can reduce the search space and improve pipeline design without exhaustive evaluation. Our work is motivated by and aligned with a practical system that extracts metadata from tabular data and uses it for task detection, preprocessing design, and candidate pipeline generation.
+   Designing effective machine learning pipelines typically requires choosing preprocessing steps, algorithms, and hyperparameters. This paper studies how dataset metadata structural and statistical summaries of the data can drive automated decisions for pipeline selection. We review literature on automated machine learning (AutoML), meta-learning for algorithm selection, and data profiling for ML, and we discuss how metadata-based mechanisms can reduce the search space and improve pipeline design without exhaustive evaluation. Our work is motivated by and aligned with a practical system that extracts metadata from tabular data and uses it for task detection, preprocessing design, and candidate pipeline generation.
    \end{abstract}
 
    \begin{IEEEkeywords}
@@ -31,11 +31,11 @@
    \section{Introduction}
    \label{sec:intro}
 
-   The construction of effective machine learning pipelines is a complex, multi-stage engineering challenge that extends far beyond simple model fitting. It necessitates a series of critical architectural decisions, including the choice of data cleaning strategies, feature engineering techniques, learning algorithms, and the precise tuning of hyperparameters. This optimization problem---often requiring the selection of a specific configuration from a theoretically infinite space---typically demands significant domain expertise and extensive iterative experimentation. Consequently, manual pipeline design is often inefficient, prone to human bias, and computationally expensive.
+   The construction of effective machine learning pipelines is a complex, multi-stage engineering challenge that extends far beyond simple model fitting. It necessitates a series of critical architectural decisions, including the choice of data cleaning strategies, feature engineering techniques, learning algorithms, and the precise tuning of hyperparameters. This optimization problem often requiring the selection of a specific configuration from a theoretically infinite space typically demands significant domain expertise and extensive iterative experimentation. Consequently, manual pipeline design is often inefficient, prone to human bias, and computationally expensive.
 
    To mitigate these issues, Automated Machine Learning (AutoML) approaches~\cite{he2021automl} have been developed to traverse this search space autonomously. Many standard solutions employ rigorous search strategies, such as Bayesian optimization~\cite{bergstra2011algorithms}, genetic programming, or random search, to evaluate a vast array of potential pipelines. While these methods are powerful, they can be computationally prohibitive, often wasting resources evaluating candidates that are fundamentally ill-suited for the dataset at hand. An alternative, more efficient paradigm leverages prior knowledge in the form of dataset \emph{metadata} to essentially ``warm-start'' or constrain the search process.
 
-   This paper studies \emph{metadata-based decision mechanisms} as a robust framework for efficient pipeline selection. We examine how structural and statistical summaries of the data---ranging from basic metrics like sample size and feature types to complex profiles of missingness, outliers, and target distribution---can be used to algorithmically determine the optimal search strategy. By analyzing these properties before training begins, we show how an automated system can intelligently filter out unsuitable algorithms and prioritize those with the highest probability of success.
+   This paper studies \emph{metadata-based decision mechanisms} as a robust framework for efficient pipeline selection. We examine how structural and statistical summaries of the data ranging from basic metrics like sample size and feature types to complex profiles of missingness, outliers, and target distribution can be used to algorithmically determine the optimal search strategy. By analyzing these properties before training begins, we show how an automated system can intelligently filter out unsuitable algorithms and prioritize those with the highest probability of success.
 
    This study is aligned with the implementation of a practical, end-to-end system that extracts such metadata from tabular data to drive decision-making. This system utilizes metadata not just for model recommendation, but also for automated task detection, preprocessing strategy design, and candidate pipeline generation. 
    
@@ -87,7 +87,7 @@
    \section{Methodology}
    \label{sec:methodology}
 
-   We present \textbf{MetaFlow}, an end-to-end system that extracts structural and statistical metadata from a tabular dataset and uses it to drive every downstream decision---task detection, preprocessing, model selection, and pipeline evaluation---without exhaustive search.
+   We present \textbf{MetaFlow}, an end-to-end system that extracts structural and statistical metadata from a tabular dataset and uses it to drive every downstream decision task detection, preprocessing, model selection, and pipeline evaluation without exhaustive search.
    Fig.~\ref{fig:overview} summarises the ten-step pipeline.
 
    \begin{figure}[t]
@@ -130,7 +130,7 @@
    \label{fig:overview}
    \end{figure}
 
-   %----------------------------------------------------------------------
+   %                       -
    \subsection{Metadata Extraction}
    \label{sec:metadata}
 
@@ -150,7 +150,7 @@
 
    This metadata dictionary is the \emph{sole input} consumed by all subsequent modules, ensuring that each decision is traceable to a measurable dataset property.
 
-   %----------------------------------------------------------------------
+   %                       -
    \subsection{Task Detection}
    \label{sec:task_detection}
 
@@ -166,7 +166,7 @@
 
    The detected task type routes the system to the appropriate model family and evaluation metrics.
 
-   %----------------------------------------------------------------------
+   %                       -
    \subsection{Data Preprocessing}
    \label{sec:preprocessing}
 
@@ -175,7 +175,7 @@
    \paragraph{Row-level cleaning (DataPreprocessor).}
    Before any pipeline is trained, the \texttt{DataPreprocessor} performs a single pass over the data:
    (i)~features whose missing ratio exceeds a threshold $\theta_\text{miss}$ (default~0.5) are dropped;
-   (ii)~remaining missing values are imputed according to a configurable strategy---by default, \emph{median} for numeric features and \emph{mode} for categorical features;
+   (ii)~remaining missing values are imputed according to a configurable strategy by default, \emph{median} for numeric features and \emph{mode} for categorical features;
    (iii)~completely empty rows are removed; and
    (iv)~rows with a missing target value are removed.
    The processed data are reused for every candidate pipeline, ensuring a fair comparison.
@@ -187,11 +187,11 @@
    \item \textbf{Categorical features}: constant imputation (fill value \texttt{`missing'}) followed by one-hot encoding (\texttt{OneHotEncoder} with \texttt{handle\_unknown=`ignore'}).
    \end{itemize}
 
-   %----------------------------------------------------------------------
+   %                       -
    \subsection{Rule-Based Model Selection}
    \label{sec:model_selection}
 
-   The \texttt{RuleBasedModelSelector} replaces exhaustive algorithm search with a set of interpretable, metadata-conditioned rules.  The selector draws on the full metadata dictionary---dataset size, complexity, class imbalance, categorical cardinality, outlier density, feature--target correlation, and distributional skewness---to produce a \emph{prioritised} list of candidate models with associated hyperparameter grids.
+   The \texttt{RuleBasedModelSelector} replaces exhaustive algorithm search with a set of interpretable, metadata-conditioned rules.  The selector draws on the full metadata dictionary dataset size, complexity, class imbalance, categorical cardinality, outlier density, feature--target correlation, and distributional skewness to produce a \emph{prioritised} list of candidate models with associated hyperparameter grids.
 
    \paragraph{Dataset size.}
    The number of samples $n$ is binned into five categories: \emph{tiny} ($n < 1{,}000$), \emph{small} ($1{,}000 \leq n < 10{,}000$), \emph{medium} ($10{,}000 \leq n < 100{,}000$), \emph{large} ($100{,}000 \leq n < 1{,}000{,}000$), and \emph{huge} ($n \geq 1{,}000{,}000$).
@@ -200,7 +200,7 @@
    A complexity score is computed from: (a)~high dimensionality ($p > 50$, +2); (b)~high feature-to-sample ratio ($p/n > 0.1$, +2); (c)~categorical-feature dominance ($>50\%$ of features categorical, +1); and (d)~moderately many features ($p > 20$, +1). The score maps to \emph{simple} ($\leq 2$), \emph{moderate} (3--4), or \emph{complex} ($\geq 5$).
 
    \paragraph{Base selection rules (classification).}
-   Table~\ref{tab:cls_rules} lists the size-based rules and model pool for classification.  Each tier now includes a broader set of algorithms---from linear baselines to gradient-boosting variants and instance-based learners---so that even the rule-based shortlist offers diversity.
+   Table~\ref{tab:cls_rules} lists the size-based rules and model pool for classification.  Each tier now includes a broader set of algorithms from linear baselines to gradient-boosting variants and instance-based learners so that even the rule-based shortlist offers diversity.
 
    \begin{table}[t]
    \centering
@@ -259,7 +259,7 @@
    Each recommendation carries a priority score, a human-readable reason, and a per-model hyperparameter grid.
    The top $k$ candidates (default $k=5$, configurable) are forwarded to the pipeline generator.
 
-   %----------------------------------------------------------------------
+   %                       -
    \subsection{Pipeline Generation}
    \label{sec:pipeline_gen}
 
@@ -270,7 +270,7 @@
    \end{enumerate}
    The result is a list of $k$ pipeline dictionaries, each recording the pipeline object, the model name, the hyperparameter search grid, the selection reason, and a description.
 
-   %----------------------------------------------------------------------
+   %                       -
    \subsection{Training and Evaluation}
    \label{sec:training}
 
@@ -295,7 +295,7 @@
    \item \textbf{High variance}: cross-validation standard deviation exceeding~0.15.
    \end{itemize}
 
-   %----------------------------------------------------------------------
+   %                       -
    \subsection{Best Pipeline Selection and Optimisation}
    \label{sec:best_selection}
 
