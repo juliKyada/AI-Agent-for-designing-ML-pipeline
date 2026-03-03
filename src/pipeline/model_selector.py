@@ -173,12 +173,14 @@ class RuleBasedModelSelector:
         n_features = self.metadata['dataset']['n_features']
         n_classes = self.metadata['target']['n_unique']
         
-        # Check for class imbalance
-        class_balance = self.metadata['target'].get('class_balance', {})
-        is_imbalanced = False
-        if class_balance:
-            min_class_ratio = min(class_balance.values())
-            is_imbalanced = min_class_ratio < 0.1
+        # Check for class imbalance (Enhanced)
+        imbalance_info = self.metadata.get('imbalance', {})
+        is_imbalanced = imbalance_info.get('is_highly_imbalanced', False)
+        min_class_ratio = imbalance_info.get('min_class_ratio', 1.0)
+        
+        # Check for high cardinality
+        cardinality_info = self.metadata.get('cardinality', {})
+        high_cardinality_features = cardinality_info.get('high_cardinality_features', [])
         
         # Rule 1: For tiny datasets, prefer simple models but include diverse options
         if self.dataset_size == DatasetSize.TINY:
@@ -499,13 +501,36 @@ class RuleBasedModelSelector:
         
         # Rule 6: Imbalanced classes
         if is_imbalanced:
-            logger.info("Class imbalance detected - adjusting recommendations")
+            logger.info(f"Class imbalance detected (min ratio: {min_class_ratio:.2%}) - adjusting recommendations")
             for rec in recommendations:
                 if rec.name in ["Random Forest", "XGBoost", "LightGBM"]:
                     rec.hyperparameters['model__class_weight'] = ['balanced']
-                    rec.reason += " (with class balancing)"
-        
-        # Rule 7: Simple linear patterns
+                    rec.reason += f" (compensated for {min_class_ratio:.2%} minority class)"
+                elif rec.name == "Logistic Regression":
+                    rec.hyperparameters['model__class_weight'] = ['balanced']
+                    rec.reason += " (using balanced weights for imbalance)"
+
+        # Rule 7: High Cardinality Categoricals
+        if high_cardinality_features:
+            logger.info(f"High cardinality features detected: {len(high_cardinality_features)}")
+            for rec in recommendations:
+                if rec.name in ["XGBoost", "LightGBM", "Random Forest"]:
+                    rec.priority = max(1, rec.priority - 1)
+                    rec.reason += " (handles high cardinality via tree partitioning)"
+
+        # Rule 8: Outliers
+        outlier_info = self.metadata.get('outliers', {})
+        if outlier_info.get('overall_density', 0) > 0.05:
+            logger.info(f"High outlier density detected: {outlier_info['overall_density']:.2%}")
+            for rec in recommendations:
+                if rec.name in ["Random Forest", "XGBoost", "LightGBM"]:
+                    rec.priority = max(1, rec.priority - 1)
+                    rec.reason += " (robust to outliers)"
+                elif rec.name == "Logistic Regression":
+                    rec.priority += 1
+                    rec.reason += " (penalized due to outlier sensitivity)"
+
+        # Rule 9: Simple linear patterns
         if self.dataset_complexity == DatasetComplexity.SIMPLE:
             # Boost priority of linear models
             for rec in recommendations:
@@ -520,7 +545,15 @@ class RuleBasedModelSelector:
         recommendations = []
         n_samples = self.metadata['dataset']['n_samples']
         n_features = self.metadata['dataset']['n_features']
+
+        # Analysis of statistics
+        stats = self.metadata.get('statistics', {})
+        target_skew = stats.get('target_skew', 0) or 0
+        overall_skew = np.mean(list(stats.get('skewness', {}).values())) if stats.get('skewness') else 0
         
+        outlier_info = self.metadata.get('outliers', {})
+        outlier_density = outlier_info.get('overall_density', 0)
+
         # Rule 1: For tiny datasets, prefer simple models but include diverse options
         if self.dataset_size == DatasetSize.TINY:
             recommendations.append(ModelRecommendation(
@@ -828,6 +861,27 @@ class RuleBasedModelSelector:
                 if "Regression" in rec.name and rec.name != "Decision Tree":
                     rec.priority = max(1, rec.priority - 1)
                     rec.reason += " (dataset shows linear patterns)"
+
+        # Rule 7: Skewed target and features
+        if abs(target_skew) > 1.0 or abs(overall_skew) > 1.5:
+            logger.info(f"High skewness detected (target: {target_skew:.2f}, avg features: {overall_skew:.2f})")
+            for rec in recommendations:
+                if rec.name in ["XGBoost", "LightGBM", "Random Forest"]:
+                    rec.priority = max(1, rec.priority - 1)
+                    rec.reason += " (non-linear tree models handle skewed data better)"
+                elif "Linear" in rec.name or "Ridge" in rec.name:
+                    rec.reason += " (recommending log/power transform if used in pipeline)"
+
+        # Rule 8: Outliers in regression
+        if outlier_density > 0.05:
+            logger.info(f"High outlier density in regression: {outlier_density:.2%}")
+            for rec in recommendations:
+                if rec.name in ["Random Forest", "XGBoost", "LightGBM"]:
+                    rec.priority = max(1, rec.priority - 1)
+                    rec.reason += " (robust to outliers vs squared loss models)"
+                elif rec.name == "Linear Regression":
+                    rec.priority += 2
+                    rec.reason += " (sensitive to outliers, de-prioritizing)"
         
         return recommendations
     
