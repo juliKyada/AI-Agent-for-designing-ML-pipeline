@@ -43,19 +43,37 @@
    \section{Literature Review}
    \label{sec:literature}
 
-   We review how \emph{metadata}---summaries of dataset structure and statistics---is used to decide or constrain pipeline design, and position our work within AutoML and meta-learning.
+   This section reviews distinct approaches to automated machine learning, categorizing them by how they utilize dataset \emph{metadata} to constrain the immense search space of possible pipelines. We contrast optimization-centric methods with meta-learning approaches and examine the evolving role of data profiling.
 
-   \subsection{AutoML, Meta-Learning, and Metadata}
+   \subsection{AutoML and Optimization Strategies}
 
-   AutoML systems treat pipeline design as search or optimization. \textbf{Auto-WEKA}~\cite{thornton2013auto} combines algorithm and hyperparameter selection via Bayesian optimization; \textbf{Auto-sklearn}~\cite{feurer2015efficient} uses meta-learning on past datasets (often from repositories like OpenML~\cite{vanschoren2013openml}) to warm-start search; \textbf{TPOT}~\cite{olson2016tpot} evolves pipelines with genetic programming; \textbf{FLAML}~\cite{wang2021flaml} focuses on efficient search. Other systems like \textbf{AutoGluon}~\cite{erickson2020autogluon} leverage ensembling, while services like \textbf{Google Vizier}~\cite{golovin2017google} provide black-box optimization at scale. Newer frameworks like \textbf{LALE}~\cite{baudart2020pipeline} focus on correct-by-construction pipeline synthesis. In these systems, dataset characteristics often inform strategy, but selection is largely \emph{performance-based} after evaluation. By contrast, \emph{meta-learning for algorithm selection} uses \textbf{meta-features} (a form of metadata) to recommend algorithms without evaluating all candidates. \textbf{StatLog}~\cite{michie1994machine} related dataset properties to algorithm performance; metalearning surveys~\cite{leite2012survey,brazil2010metalearning} show how problem characteristics can drive algorithm choice. Thus metadata can narrow the candidate set and improve over fixed defaults.
+   The problem of simultaneously choosing an algorithm and its hyperparameters is formally defined as the Combined Algorithm Selection and Hyperparameter optimization (CASH) problem. Early systems like \textbf{Auto-WEKA}~\cite{thornton2013auto} pioneered the use of Bayesian optimization (specifically SMAC or TPE) to traverse this hierarchical space. While effective, these methods treat the objective function as a black box, requiring expensive evaluations of many poor candidates to map the response surface.
 
-   \subsection{Metadata for Preprocessing and Task Detection}
+   Evolutionary approaches offer an alternative; \textbf{TPOT}~\cite{olson2016tpot} uses genetic programming to evolve tree-based pipeline structures. This allows for flexible feature engineering but incurs high computational cost ($O(N^2)$ or higher depending on the population size). To address latency, \textbf{FLAML}~\cite{wang2021flaml} and \textbf{LightAutoML} introduce "frugal" optimization techniques that prioritize low-cost learners and subsampled datasets. However, these systems still fundamentally rely on trial-and-error evaluation rather than a priori reasoning about dataset suitability.
 
-   Data profiling provides metadata such as schema, missingness, cardinality, and quality metrics; data-centric AI~\cite{sambasivan2021data} stresses the importance of data understanding. Assessing cleaning impact~\cite{li2021cleanml} and valuing data via Shapley values~\cite{ghorbani2019data} are critical modern perspectives. In pipelines, this metadata drives \emph{preprocessing}: imputation and scaling choices from missingness and outliers, encoding (e.g., one-hot vs. target) from categorical cardinality. \textbf{Task detection} (classification vs. regression) from target statistics (dtype, number of unique values) is a metadata-based decision used widely to route to the right model family. Feature metadata (numerical vs. categorical, from dtypes and cardinality thresholds) underlies tools like ColumnTransformer, while approaches like Deep Feature Synthesis~\cite{kanter2015deep} automate feature engineering. The open question is how far metadata can be extended to \emph{model} selection and hyperparameter defaults.
+   \subsection{Meta-Learning and Warm-Starting}
 
-   \subsection{Gap and Contribution}
+   Meta-learning frames algorithm selection as a supervised learning problem: given a new dataset, predict which pipeline will perform best based on experience with prior datasets. \textbf{Auto-sklearn}~\cite{feurer2015efficient} significantly advanced the field by introducing "warm-starting," where the optimization procedure is initialized with pipelines that performed well on similar datasets in a meta-knowledge repository (e.g., OpenML~\cite{vanschoren2013openml}).
 
-   Existing work shows that metadata supports algorithm recommendation and already drives task detection and preprocessing; full pipeline search remains expensive. Integrated systems that use a single metadata extractor for \emph{both} preprocessing \emph{and} model (candidate) selection are less common. This paper studies such mechanisms in a system that extracts metadata (size, feature types, target and quality statistics) and uses it for task detection, preprocessor design, and potentially for filtering or ranking candidate models.
+   The similarity between datasets is typically quantified using \textbf{meta-features}~\cite{brazil2010metalearning,leite2012survey}. These include:
+   \begin{itemize}
+       \item \emph{Statistical meta-features}: Kurtosis, skewness, correlation matrices.
+       \item \emph{Information-theoretic meta-features}: Class entropy, mutual information.
+       \item \emph{Landmarking}: The performance of fast, simple algorithms (e.g., 1-NN, Decision Stump) used to characterize problem difficulty.
+   \end{itemize}
+   While meta-learning reduces the "cold start" problem, it typically requires a vast offline repository of experimental results, which can be computationally expensive to maintain and update.
+
+   \subsection{Metadata for Task Detection and Feature Engineering}
+
+   Beyond algorithm selection, metadata is critical for structure discovery. "Data-Centric AI"~\cite{sambasivan2021data} emphasizes improving data quality over model architecture. Tools like \textbf{TensorFlow Data Validation} and \textbf{pandas-profiling} automate the extraction of schema and distribution statistics.
+
+   In modern pipelines, this metadata drives deterministic preprocessing decisions. For instance, high cardinality in categorical features ($|C| \gg 10$) often necessitates embedding or target encoding rather than one-hot encoding to avoid sparsity explosion. Deep Feature Synthesis~\cite{kanter2015deep} utilizes relational metadata to automatically generate interaction features. Furthermore, \textbf{CleanML}~\cite{li2021cleanml} demonstrates that the choice of cleaning strategy (e.g., imputation method) often impacts downstream performance more than the choice of classification algorithm.
+
+   \subsection{Research Gap and Contribution}
+
+   A gap exists between pure optimization (which is general but slow) and pure meta-learning (which requires massive training logs). Most existing systems use metadata only for \emph{initialization} (warm-starting) but revert to black-box search thereafter. Few systems use metadata to impose \emph{hard constraints} or strict prioritization logic to prune the search space deterministically.
+
+   This paper investigates a "grey-box" approach: mapping interpretable metadata directly to pipeline design decisions. By treating dataset properties (size tiers, sparsity, linearity) as conditions in a rule-based expert system, we aim to eliminate unsuitable candidates \emph{before} training begins. This effectively reduces the search space for the subsequent optimization phase, offering a balance between the breadth of AutoML and the efficiency of expert heuristics.
 
    %==============================================================================
    \section{Methodology}
