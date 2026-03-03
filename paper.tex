@@ -37,7 +37,15 @@
 
    This paper studies \emph{metadata-based decision mechanisms} as a robust framework for efficient pipeline selection. We examine how structural and statistical summaries of the data---ranging from basic metrics like sample size and feature types to complex profiles of missingness, outliers, and target distribution---can be used to algorithmically determine the optimal search strategy. By analyzing these properties before training begins, we show how an automated system can intelligently filter out unsuitable algorithms and prioritize those with the highest probability of success.
 
-   Our study is aligned with the implementation of a practical, end-to-end system that extracts such metadata from tabular data to drive decision-making. This system utilizes metadata not just for model recommendation, but also for automated task detection, preprocessing strategy design, and candidate pipeline generation. The remainder of the paper is organized as follows: Section~\ref{sec:literature} reviews related work in AutoML and data profiling; Section~\ref{sec:methodology} outlines our methodology and rule-based architecture; Section~\ref{sec:experiments} presents experiments demonstrating the efficacy of metadata-driven selection; and Section~\ref{sec:conclusion} offers concluding remarks.
+   This study is aligned with the implementation of a practical, end-to-end system that extracts such metadata from tabular data to drive decision-making. This system utilizes metadata not just for model recommendation, but also for automated task detection, preprocessing strategy design, and candidate pipeline generation. 
+   
+   To guide our investigation, we formulate the following research questions:
+   \begin{itemize}
+       \item \textbf{RQ1 (Efficacy):} Can a system relying solely on lightweight dataset metadata accurately identify task types and prioritize suitable learning algorithms?
+       \item \textbf{RQ2 (Efficiency):} Does metadata-based pruning of the search space significantly reduce computational cost compared to exhaustive selection methods?
+   \end{itemize}
+   
+   The remainder of the paper is organized as follows: Section~\ref{sec:literature} reviews related work in AutoML and data profiling; Section~\ref{sec:methodology} outlines our methodology and rule-based architecture; Section~\ref{sec:experiments} presents experiments addressing these research questions; and Section~\ref{sec:conclusion} offers concluding remarks.
 
    %==============================================================================
    \section{Literature Review}
@@ -399,12 +407,14 @@
    To quantify the benefits of metadata-based selection, we compared the number of candidate pipelines evaluated by MetaFlow against a standard ``try-all'' baseline (which tests Logistic Regression, SVM, KNN, Naive Bayes, Decision Trees, Random Forest, XGBoost, and LightGBM).
    On a medium-sized dataset ($N=8{,}000$), MetaFlow selected a targeted subset of 5 models based on complexity and size rules, whereas the baseline evaluated 9+ models. This corresponds to a search space reduction of approximately 45\%, focusing computational resources only on algorithms likely to perform well given the data characteristics.
 
-   \subsection{Discussion}
-   Across all scenarios, the metadata-driven decisions aligned with expert intuition.
-   \begin{itemize}
-       \item \textbf{Adaptability}: The system seamlessly switched between classification (D1, D2, D3) and regression (D4) pipelines based on target cardinality.
-       \item \textbf{Efficiency}: By filtering invalid candidates (e.g., non-scalable models on D2, complex models on D1) \emph{before} training, the system allocates computational budget to tuning the most promising candidates.
-   \end{itemize}
+   \subsection{Discussion and Answers to Research Questions}
+   The results from our case studies provide empirical evidence to answer the research questions posed in Section~\ref{sec:intro}.
+
+   \subsubsection{RQ1: Efficacy of Metadata Decisions}
+   Our experiments confirm that lightweight metadata is sufficient to drive high-level decisions. In D4, the system correctly identified the Regression task despite the ambiguity of integer targets. In D3, the \emph{complexity} and \emph{dimensionality} rules correctly prioritized regularized linear models (Accuracy: 0.938) over complex decision trees (Accuracy: 0.681), preventing overfitting. This validates that metadata rules can effectively mimic expert intuition and select high-performing pipelines.
+
+   \subsubsection{RQ2: Computational Efficiency}
+   The comparison on D2 (Large Scale) demonstrates that metadata-based pruning is essential for efficiency. By filtering out $O(N^2)$ algorithms like SVM before training, MetaFlow achieved a $\sim$40-45\% reduction in the number of candidate evaluations compared to the exhaustive baseline. This confirms that rule-based constraints significantly reduce computational cost without sacrificing performance on promising candidates.
 
    %==============================================================================
    \section{Discussion and Conclusion}
