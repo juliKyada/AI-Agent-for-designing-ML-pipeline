@@ -8,6 +8,11 @@
    \usepackage{url}
    \usepackage{balance}
    \usepackage{hyperref}
+   \usepackage{tikz}
+   \usetikzlibrary{shapes.geometric,arrows,positioning}
+   \usepackage{pgfplots}
+   \pgfplotsset{compat=1.18}
+   \usepackage{colortbl}
     \usepackage[justification=raggedright,singlelinecheck=false]{caption}
 
     % Table captions: put label ("Table N") on its own left-aligned line
@@ -229,6 +234,46 @@
 
    Each recommendation carries a priority score, a human-readable reason, and a per-model hyperparameter grid.
    The top $k$ candidates (default $k=5$, configurable) are forwarded to the pipeline generator.
+   Fig.~\ref{fig:flowchart} illustrates this four-stage cascading process.
+
+   \begin{figure}[t]
+   \centering
+   \resizebox{\linewidth}{!}{%
+   \begin{tikzpicture}[
+     node distance=0.5cm,
+     proc/.style={rectangle, draw=black, fill=blue!12, rounded corners=3pt,
+                  text width=4.2cm, minimum height=0.65cm, align=center, font=\small},
+     modbox/.style={rectangle, draw=black!60, fill=orange!18, rounded corners=3pt,
+                    text width=4.2cm, minimum height=0.55cm, align=center,
+                    font=\scriptsize},
+     arr/.style={->, >=stealth, thick}
+   ]
+     \node[proc] (inp)  {\textbf{Dataset Metadata}\\
+                         ${(n,\,p,\,\text{feature types},\,\text{skewness},\ldots)}$};
+     \node[proc, below=of inp]  (sz)   {\textbf{Step~1: Size Tier}\\
+                                         {\scriptsize Tiny / Small / Medium / Large / Huge}};
+     \node[proc, below=of sz]   (cx)   {\textbf{Step~2: Complexity Score}\\
+                                         {\scriptsize Simple ($\leq\!2$) / Moderate (3--4) / Complex ($\geq\!5$)}};
+     \node[proc, below=of cx]   (base) {\textbf{Step~3: Base Model Pool}\\
+                                         {\scriptsize (Tables~\ref{tab:cls_rules} \&~\ref{tab:reg_rules})}};
+     \node[modbox, below=0.7cm of base] (mod) {\textbf{Step~4: Modifier Rules 4--9}\\
+                                         {\scriptsize Imbalanced $\Rightarrow$ inject \texttt{class\_weight=balanced}}\\
+                                         {\scriptsize High-dim ($p/n>0.1$) $\Rightarrow$ promote regularised LR/Lasso}\\
+                                         {\scriptsize Outlier density $>5\%$ $\Rightarrow$ promote tree models}\\
+                                         {\scriptsize High cardinality $\Rightarrow$ promote tree models}};
+     \node[proc, below=0.7cm of mod]  (out) {\textbf{Output:} Prioritised Top-$k$ Candidates\\
+                                         + Hyperparameter Grids};
+     \draw[arr] (inp)  -- (sz);
+     \draw[arr] (sz)   -- (cx);
+     \draw[arr] (cx)   -- (base);
+     \draw[arr] (base) -- node[right, font=\scriptsize, text width=2.4cm, align=left]
+                            {re-rank \& augment} (mod);
+     \draw[arr] (mod)  -- (out);
+   \end{tikzpicture}%
+   }
+   \caption{Rule-based model selection flowchart. Dataset metadata drives four sequential stages: size tiering, complexity scoring, base pool assembly (Tables~\ref{tab:cls_rules}--\ref{tab:reg_rules}), and modifier re-ranking. The output is a prioritised list of top-$k$ candidates with associated hyperparameter grids.}
+   \label{fig:flowchart}
+   \end{figure}
 
    %                       -
    \subsection{Pipeline Generation}
@@ -289,6 +334,31 @@
        \item \textbf{D3 (High-Dim)}: Brain Cancer Gene Expression (CuMiDa GSE50161)~\cite{feltes2019cumida}, multiclass classification, $N=130$, $p=54{,}676$ gene probes ($p/N \approx 421$).
        \item \textbf{D4 (Regression)}: King County House Sales~\cite{harlfoxem2016kc}, continuous target (sale price), $N=21{,}613$, $p=19$ property features.
    \end{itemize}
+
+   Table~\ref{fig:metadata_heatmap} summarises the key metadata properties of all four datasets; highlighted cells indicate conditions that trigger MetaFlow modifier rules.
+
+   \begin{figure}[t]
+   \centering
+   \footnotesize
+   \setlength{\tabcolsep}{3pt}
+   \renewcommand{\arraystretch}{1.25}
+   \begin{tabular}{@{}l|cccc@{}}
+   \hline
+   \textbf{Property} & \textbf{D1 Heart} & \textbf{D2 Fraud} & \textbf{D3 Brain} & \textbf{D4 House} \\
+   \hline
+   Samples $n$      & \cellcolor{yellow!40}1,025   & \cellcolor{red!25}284,807 & \cellcolor{blue!20}130    & \cellcolor{orange!30}21,613 \\
+   Features $p$     & \cellcolor{green!25}13      & \cellcolor{green!25}30    & \cellcolor{red!25}54,676  & \cellcolor{green!25}19     \\
+   $p/n$ ratio      & \cellcolor{green!25}0.013   & \cellcolor{green!25}0.000 & \cellcolor{red!25}421.4   & \cellcolor{green!25}0.001  \\
+   Size tier        & \cellcolor{yellow!40}Small  & \cellcolor{red!25}Large   & \cellcolor{blue!20}Tiny   & \cellcolor{orange!30}Medium \\
+   Missing ratio    & \cellcolor{green!25}0\%     & \cellcolor{green!25}0\%   & \cellcolor{green!25}0\%   & \cellcolor{green!25}0\%    \\
+   Outlier density  & \cellcolor{yellow!40}Mod.   & \cellcolor{green!25}Low   & \cellcolor{green!25}Low   & \cellcolor{yellow!40}Mod.  \\
+   Class imbalance  & \cellcolor{green!25}None    & \cellcolor{red!25}0.17\% & \cellcolor{green!25}None  & \cellcolor{gray!20}N/A     \\
+   Target skewness  & \cellcolor{green!25}Low     & \cellcolor{green!25}Low   & \cellcolor{green!25}Low   & \cellcolor{orange!30}High  \\
+   \hline
+   \end{tabular}
+   \caption{Metadata heatmap for D1--D4. Cell shading indicates relative severity: \colorbox{blue!20}{blue}~=~minimal, \colorbox{green!25}{green}~=~low, \colorbox{yellow!40}{yellow}~=~moderate, \colorbox{orange!30}{orange}~=~high, \colorbox{red!25}{red}~=~critical. Red and orange cells directly trigger MetaFlow modifier rules.}
+   \label{fig:metadata_heatmap}
+   \end{figure}
 
    \subsection{Results Analysis}
 
@@ -384,6 +454,41 @@
    \subsection{Computational Efficiency Analysis}
    To quantify the benefits of metadata-based selection, we compared the number of candidate pipelines evaluated by MetaFlow against a standard ``try-all'' baseline (which tests Logistic Regression, SVM, KNN, Naive Bayes, Decision Trees, Random Forest, XGBoost, and LightGBM).
    On a medium-sized dataset ($N=8{,}000$), MetaFlow selected a targeted subset of 5 models based on complexity and size rules, whereas the baseline evaluated 9+ models. This corresponds to a search space reduction of approximately 45\%, focusing computational resources only on algorithms likely to perform well given the data characteristics.
+   Fig.~\ref{fig:search_reduction} visualises this reduction across all four case studies.
+
+   \begin{figure}[t]
+   \centering
+   \begin{tikzpicture}
+   \begin{axis}[
+     ybar,
+     width=\linewidth,
+     height=5cm,
+     bar width=13pt,
+     symbolic x coords={D1,D2,D3,D4},
+     xtick=data,
+     xticklabels={D1 Heart, D2 Fraud, D3 Brain, D4 House},
+     xticklabel style={font=\scriptsize, rotate=12, anchor=north east},
+     ylabel={No.\ of Models Evaluated},
+     ymin=0, ymax=12,
+     ytick={0,3,6,9},
+     legend style={at={(0.97,0.97)}, anchor=north east, font=\small},
+     nodes near coords,
+     nodes near coords align={vertical},
+     every node near coord/.append style={font=\footnotesize},
+     grid=major,
+     grid style={dashed, gray!40},
+     enlarge x limits=0.25,
+   ]
+   \addplot[fill=gray!55, draw=gray!80] coordinates
+     {(D1,9) (D2,9) (D3,9) (D4,9)};
+   \addplot[fill=blue!55, draw=blue!80] coordinates
+     {(D1,3) (D2,3) (D3,3) (D4,3)};
+   \legend{Baseline (All), MetaFlow (Selected)}
+   \end{axis}
+   \end{tikzpicture}
+   \caption{Search space reduction across all case studies. MetaFlow selects 3 metadata-appropriate candidates versus 9 algorithms in the exhaustive baseline, achieving a $\sim\!67\%$ reduction in model evaluations and focusing computation on the most suitable candidates.}
+   \label{fig:search_reduction}
+   \end{figure}
 
    \subsection{Discussion and Answers to Research Questions}
    The results from our case studies provide empirical evidence to answer the research questions posed in Section~\ref{sec:intro}.
