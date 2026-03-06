@@ -30,61 +30,81 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+    :root{
+        --bg:#0f1724;
+        --card:#0b1220;
+        --muted:#9aa4b2;
+        --accent:#4f46e5;
+        --accent-2:#06b6d4;
+        --glass: rgba(255,255,255,0.03);
+    }
+    html, body, [data-testid="stAppViewContainer"] {
+        background: linear-gradient(180deg, #071029 0%, #0f1724 100%);
+        color: #e6eef8;
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
     .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        text-align: center;
-        color: #1f77b4;
-        padding: 1rem;
+        font-size: 2.6rem;
+        font-weight: 800;
+        text-align: left;
+        color: white;
+        margin: 0;
+        letter-spacing: -0.6px;
     }
     .sub-header {
-        font-size: 1.5rem;
-        text-align: center;
-        color: #666;
-        padding-bottom: 2rem;
+        font-size: 1.05rem;
+        text-align: left;
+        color: var(--muted);
+        margin-top: 6px;
     }
-    .success-box {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
+
+    /* Hero */
+    .hero {
+        padding: 28px 28px 18px 28px;
+        background: linear-gradient(90deg, rgba(79,70,229,0.06), rgba(6,182,212,0.03));
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.04);
+        box-shadow: 0 6px 30px rgba(2,6,23,0.6);
     }
-    .info-box {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        background-color: #d1ecf1;
-        border: 1px solid #bee5eb;
-        color: #0c5460;
+    .cta-btn {
+        display:inline-block;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        color: white !important;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+        border: none;
+        box-shadow: 0 8px 20px rgba(79,70,229,0.18);
     }
-    .warning-box {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        background-color: #fff3cd;
-        border: 1px solid #ffeeba;
-        color: #856404;
+    .feature-card{
+        background: var(--card);
+        border-radius: 10px;
+        padding: 14px;
+        border: 1px solid rgba(255,255,255,0.03);
+        min-height: 120px;
     }
-    /* Keep main content (right side) at full opacity during pipeline execution */
-    [data-testid="stAppViewContainer"],
-    [data-testid="stAppViewContainer"] section.main,
-    [data-testid="stAppViewContainer"] .block-container,
-    [data-testid="stAppViewContainer"] [data-testid="stVerticalBlock"] {
-        opacity: 1 !important;
-    }
-    /* Prevent Streamlit's script-running overlay from dimming the main area */
-    [data-testid="stAppViewContainer"] > div {
-        opacity: 1 !important;
-    }
+    .feature-title{font-weight:700; color:#fff; margin-bottom:6px}
+    .feature-desc{color:var(--muted); font-size:0.95rem}
+
+    /* Sidebar tweaks */
+    [data-testid="stSidebar"] .css-1d391kg { padding: 18px 16px; }
+    [data-testid="stSidebar"] h2 { color: #fff; }
+    .upload-box{ background: var(--glass); padding: 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.02); }
+
+    /* Logs monospace */
+    .log-mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace; font-size:13px }
+
     /* Smaller, compact text for the evaluation report */
     .metaflow-report, .metaflow-report p, .metaflow-report li, .metaflow-report strong {
-        font-size: 1.3rem !important;
+        font-size: 1rem !important;
         line-height: 1.4 !important;
+        color: #dfe7f7;
     }
-    .metaflow-report hr {
-        margin: 0.6rem 0 !important;
-        border: none;
-        border-top: 1px solid rgba(128, 128, 128, 0.5);
-    }
+    .metaflow-report hr { margin: 0.6rem 0 !important; border: none; border-top: 1px solid rgba(255,255,255,0.06); }
+
+    /* Responsive tweaks */
+    @media (max-width: 900px){ .main-header{ font-size:1.8rem } .hero{ padding:18px } }
 </style>
 """, unsafe_allow_html=True)
 
@@ -165,9 +185,7 @@ def _render_logs_scrollable(log_lines, max_height_px=360):
 def main():
     """Main application"""
     
-    # Header
-    st.markdown('<div class="main-header">🤖 MetaFlow</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">AI-Powered ML Pipeline Designer</div>', unsafe_allow_html=True)
+    # (Header is included in the landing hero to keep layout consistent)
     
     # Sidebar
     with st.sidebar:
@@ -272,75 +290,61 @@ def main():
 
 def show_landing_page():
     """Show landing page when no dataset is uploaded"""
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("### 📤 Upload Dataset")
-        st.write("Upload your CSV or Excel file using the sidebar")
-    
-    with col2:
-        st.markdown("### 🎯 Select Target")
-        st.write("Choose the column you want to predict")
-    
-    with col3:
-        st.markdown("### 🚀 Get Results")
-        st.write("MetaFlow designs the best ML pipeline automatically!")
-    
-    st.markdown("---")
-    
-    # Features
-    st.markdown("## ✨ What MetaFlow Does")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        ✅ **Automatic Task Detection**
-        - Identifies Classification or Regression
-        - Analyzes target variable characteristics
-        
-        ✅ **Smart Pipeline Generation**
-        - Creates 5+ candidate ML pipelines
-        - Tests multiple algorithms
-        
-        ✅ **Hyperparameter Tuning**
-        - Automatic optimization
-        - Cross-validation
-        """)
-    
-    with col2:
-        st.markdown("""
-        ✅ **Performance Evaluation**
-        - Comprehensive metrics
-        - Overfitting detection
-        
-        ✅ **Issue Detection**
-        - Identifies problems automatically
-        - Provides improvement suggestions
-        
-        ✅ **Best Model Selection**
-        - Picks optimal pipeline
-        - Ready-to-use model
-        """)
-    
-    # Demo datasets
-    st.markdown("---")
-    st.markdown("## 📊 Try with Demo Datasets")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("🌸 Iris Dataset (Classification)", use_container_width=True):
+    # Hero + features layout
+    st.markdown('<div class="hero">', unsafe_allow_html=True)
+    left, right = st.columns([2, 1])
+
+    with left:
+        st.markdown('<div style="padding:6px 6px 2px 6px">', unsafe_allow_html=True)
+        st.markdown('<div class="main-header">🤖 MetaFlow</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sub-header">AI-powered ML pipeline designer — from data to production-ready model faster.</div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+        st.markdown('<p style="color:var(--muted); font-size:1rem; max-width:720px">MetaFlow analyzes your dataset, detects the task, builds multiple candidate pipelines, tunes hyperparameters, evaluates performance and selects the best ready-to-deploy model — all with minimal effort.</p>', unsafe_allow_html=True)
+        st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with right:
+        # small summary cards
+        st.markdown('<div style="display:flex;flex-direction:column;gap:10px">', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card"><div class="feature-title">Fast Results</div><div class="feature-desc">Generate candidate pipelines and get recommendations in minutes.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card"><div class="feature-title">Robust Evaluation</div><div class="feature-desc">Cross-validation, overfitting checks and clear metrics for model choice.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card"><div class="feature-title">Ready To Deploy</div><div class="feature-desc">Export the selected model and evaluation report for production use.</div></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="height:18px"></div>', unsafe_allow_html=True)
+
+    # Detailed features section
+    st.markdown('## ✨ Key Capabilities')
+    f1, f2, f3 = st.columns([1,1,1])
+    with f1:
+        st.markdown('<div class="feature-card"><div class="feature-title">Automatic Task Detection</div><div class="feature-desc">Detects whether your problem is classification or regression and adapts the pipeline accordingly.</div></div>', unsafe_allow_html=True)
+    with f2:
+        st.markdown('<div class="feature-card"><div class="feature-title">Smart Pipeline Generation</div><div class="feature-desc">Builds multiple candidate pipelines combining feature processing and model choices.</div></div>', unsafe_allow_html=True)
+    with f3:
+        st.markdown('<div class="feature-card"><div class="feature-title">Hyperparameter Tuning</div><div class="feature-desc">Automatic optimization with cross-validation to improve generalization.</div></div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+
+
+
+    st.markdown(' ') 
+
+    # Demo datasets (prominent)
+    st.markdown('## 📊 Try Demo Datasets')
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        if st.button('🌸 Iris — Classification', key='demo_iris'):
             load_demo_dataset('iris')
-    
-    with col2:
-        if st.button("🏥 Diabetes Dataset (Regression)", use_container_width=True):
+    with d2:
+        if st.button('🏥 Diabetes — Regression', key='demo_diabetes'):
             load_demo_dataset('diabetes')
-    
-    with col3:
-        if st.button("🎲 Synthetic Dataset", use_container_width=True):
+    with d3:
+        if st.button('🎲 Synthetic — Binary', key='demo_synth'):
             load_demo_dataset('synthetic')
+
+    st.markdown('---')
 
 def load_demo_dataset(dataset_name):
     """Load a demo dataset"""
