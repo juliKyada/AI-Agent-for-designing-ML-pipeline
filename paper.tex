@@ -99,7 +99,7 @@
    We present \textbf{MetaFlow}, an end-to-end system that extracts structural and statistical metadata from a tabular dataset and uses it to drive every downstream decision task detection, preprocessing, model selection, and pipeline evaluation without exhaustive search.
    Fig.~\ref{fig:overview} summarises the ten-step pipeline.
 
-   \begin{figure}[t]
+   \begin{figure}[ht]
    \centering
    \includegraphics[width=\linewidth]{images/diagram.png}
    \caption{MetaFlow processing stages.}
@@ -178,7 +178,7 @@
    \paragraph{Base selection rules (classification).}
    Table~\ref{tab:cls_rules} lists the size-based rules and model pool for classification.  Each tier now includes a broader set of algorithms from linear baselines to gradient-boosting variants and instance-based learners so that even the rule-based shortlist offers diversity.
 
-   \begin{table}[t]
+   \begin{table}[ht]
    \centering
    \caption{Classification model pool by dataset-size tier.}
    \label{tab:cls_rules}
@@ -199,7 +199,7 @@
    \paragraph{Base selection rules (regression).}
    Table~\ref{tab:reg_rules} shows the analogous rules for regression, which include additional linear variants (Lasso, ElasticNet) and a support-vector regressor.
 
-   \begin{table}[t]
+   \begin{table}[ht]
    \centering
    \caption{Regression model pool by dataset-size tier.}
    \label{tab:reg_rules}
@@ -234,46 +234,6 @@
 
    Each recommendation carries a priority score, a human-readable reason, and a per-model hyperparameter grid.
    The top $k$ candidates (default $k=5$, configurable) are forwarded to the pipeline generator.
-   Fig.~\ref{fig:flowchart} illustrates this four-stage cascading process.
-
-   \begin{figure}[t]
-   \centering
-   \resizebox{\linewidth}{!}{%
-   \begin{tikzpicture}[
-     node distance=0.5cm,
-     proc/.style={rectangle, draw=black, fill=blue!12, rounded corners=3pt,
-                  text width=4.2cm, minimum height=0.65cm, align=center, font=\small},
-     modbox/.style={rectangle, draw=black!60, fill=orange!18, rounded corners=3pt,
-                    text width=4.2cm, minimum height=0.55cm, align=center,
-                    font=\scriptsize},
-     arr/.style={->, >=stealth, thick}
-   ]
-     \node[proc] (inp)  {\textbf{Dataset Metadata}\\
-                         ${(n,\,p,\,\text{feature types},\,\text{skewness},\ldots)}$};
-     \node[proc, below=of inp]  (sz)   {\textbf{Step~1: Size Tier}\\
-                                         {\scriptsize Tiny / Small / Medium / Large / Huge}};
-     \node[proc, below=of sz]   (cx)   {\textbf{Step~2: Complexity Score}\\
-                                         {\scriptsize Simple ($\leq\!2$) / Moderate (3--4) / Complex ($\geq\!5$)}};
-     \node[proc, below=of cx]   (base) {\textbf{Step~3: Base Model Pool}\\
-                                         {\scriptsize (Tables~\ref{tab:cls_rules} \&~\ref{tab:reg_rules})}};
-     \node[modbox, below=0.7cm of base] (mod) {\textbf{Step~4: Modifier Rules 4--9}\\
-                                         {\scriptsize Imbalanced $\Rightarrow$ inject \texttt{class\_weight=balanced}}\\
-                                         {\scriptsize High-dim ($p/n>0.1$) $\Rightarrow$ promote regularised LR/Lasso}\\
-                                         {\scriptsize Outlier density $>5\%$ $\Rightarrow$ promote tree models}\\
-                                         {\scriptsize High cardinality $\Rightarrow$ promote tree models}};
-     \node[proc, below=0.7cm of mod]  (out) {\textbf{Output:} Prioritised Top-$k$ Candidates\\
-                                         + Hyperparameter Grids};
-     \draw[arr] (inp)  -- (sz);
-     \draw[arr] (sz)   -- (cx);
-     \draw[arr] (cx)   -- (base);
-     \draw[arr] (base) -- node[right, font=\scriptsize, text width=2.4cm, align=left]
-                            {re-rank \& augment} (mod);
-     \draw[arr] (mod)  -- (out);
-   \end{tikzpicture}%
-   }
-   \caption{Rule-based model selection flowchart. Dataset metadata drives four sequential stages: size tiering, complexity scoring, base pool assembly (Tables~\ref{tab:cls_rules}--\ref{tab:reg_rules}), and modifier re-ranking. The output is a prioritised list of top-$k$ candidates with associated hyperparameter grids.}
-   \label{fig:flowchart}
-   \end{figure}
 
    %                       -
    \subsection{Pipeline Generation}
@@ -335,10 +295,12 @@
        \item \textbf{D4 (Regression)}: King County House Sales~\cite{harlfoxem2016kc}, continuous target (sale price), $N=21{,}613$, $p=19$ property features.
    \end{itemize}
 
-   Table~\ref{fig:metadata_heatmap} summarises the key metadata properties of all four datasets; highlighted cells indicate conditions that trigger MetaFlow modifier rules.
+   Table~\ref{tab:metadata_heatmap} summarises the key metadata properties of all four datasets; highlighted cells indicate conditions that trigger MetaFlow modifier rules.
 
-   \begin{figure}[t]
+   \begin{table}[ht]
    \centering
+   \caption{Metadata heatmap for D1--D4. Cell shading indicates relative severity: \colorbox{blue!20}{blue}~=~minimal, \colorbox{green!25}{green}~=~low, \colorbox{yellow!40}{yellow}~=~moderate, \colorbox{orange!30}{orange}~=~high, \colorbox{red!25}{red}~=~critical. Red and orange cells directly trigger MetaFlow modifier rules.}
+   \label{tab:metadata_heatmap}
    \footnotesize
    \setlength{\tabcolsep}{3pt}
    \renewcommand{\arraystretch}{1.25}
@@ -356,9 +318,7 @@
    Target skewness  & \cellcolor{green!25}Low     & \cellcolor{green!25}Low   & \cellcolor{green!25}Low   & \cellcolor{orange!30}High  \\
    \hline
    \end{tabular}
-   \caption{Metadata heatmap for D1--D4. Cell shading indicates relative severity: \colorbox{blue!20}{blue}~=~minimal, \colorbox{green!25}{green}~=~low, \colorbox{yellow!40}{yellow}~=~moderate, \colorbox{orange!30}{orange}~=~high, \colorbox{red!25}{red}~=~critical. Red and orange cells directly trigger MetaFlow modifier rules.}
-   \label{fig:metadata_heatmap}
-   \end{figure}
+   \end{table}
 
    \subsection{Results Analysis}
 
@@ -366,7 +326,7 @@
    On the Heart Disease dataset ($N=1{,}025$, $p=13$), MetaFlow correctly detected a binary classification task with 95\% confidence. The \texttt{RuleBasedModelSelector} classified the dataset as \emph{small/simple} and selected ensemble methods: Random Forest (Priority~1), XGBoost (Priority~2), and LightGBM (Priority~3).
    Table~\ref{tab:d1_results} shows performance after grid-search tuning. All three ensembles achieved strong generalisation; LightGBM attained the highest cross-validation score (0.9720), while all models reached perfect accuracy on the held-out test split, consistent with the dataset's low feature-to-sample ratio and clean numerical features.
 
-   \begin{table}[h]
+   \begin{table}[htbp]
    \centering
    \caption{Performance on Heart Disease Dataset (D1)}
    \label{tab:d1_results}
@@ -389,7 +349,7 @@
 
    Table~\ref{tab:d2_results} summarises the performance of selected models versus excluded candidates. All three gradient-boosting models achieved CV accuracy $>0.998$, validating the rule-based exclusion of slower classifiers.
 
-   \begin{table}[h]
+   \begin{table}[htbp]
    \centering
    \caption{Model Selection \& Performance for Fraud Dataset (D2)}
    \label{tab:d2_results}
@@ -413,7 +373,7 @@
    D3 uses the NCBI GEO Brain Cancer Gene Expression dataset (GSE50161): $N=130$ samples across 5 tumor types (ependymoma, glioblastoma, medulloblastoma, normal, pilocytic astrocytoma) with $p=54{,}676$ Affymetrix probe features, yielding a feature-to-sample ratio of $p/N \approx 421$. MetaFlow pre-selected the top-1{,}000 most-variant probes ($p/N \approx 7.7$, still ultra-high-dimensional) to maintain tractable grid search. Given the tiny sample count ($N=130$), the complexity rules activated \textit{small-dataset} priority, penalizing high-variance ensembles and instead recommending lightweight generalizing models: \textbf{Logistic Regression}, Decision Tree, and Gaussian Naive Bayes.
    Table~\ref{tab:d3_results} shows the outcome. Decision Tree achieved the best test accuracy ($0.9615$) while Logistic Regression led in cross-validated score ($0.9714$), confirming that bias-variance-aware selection matters at small $N$.
 
-   \begin{table}[h]
+   \begin{table}[htbp]
    \centering
    \caption{Performance on Brain Cancer Gene Expression Dataset (D3)}
    \label{tab:d3_results}
@@ -434,7 +394,7 @@
    D4 uses the King County House Sales dataset (Kaggle): $N=21{,}613$ transactions with $p=20$ features (bedrooms, bathrooms, square footage, location, etc.) and a continuous \texttt{price} target. MetaFlow worked on a stratified random sample of 5{,}000 records. The system correctly identified regression from the float-valued target with 1{,}671 unique values and applied \textit{medium-to-large dataset} rules, recommending ensemble tree models: \textbf{XGBoost}, Random Forest, and LightGBM.
    Table~\ref{tab:d4_results} confirms that XGBoost achieved the best cross-validated $R^2$ among tuned ensembles ($0.8546$) while maintaining competitive test $R^2$ ($0.8453$). All three ensembles captured the non-linear price relationships substantially better than linear baselines would, demonstrating that metadata-driven model selection correctly matched the data's complexity.
 
-   \begin{table}[h]
+   \begin{table}[htbp]
    \centering
    \caption{Performance on King County House Sales Dataset (D4)}
    \label{tab:d4_results}
@@ -456,7 +416,7 @@
    On a medium-sized dataset ($N=8{,}000$), MetaFlow selected a targeted subset of 5 models based on complexity and size rules, whereas the baseline evaluated 9+ models. This corresponds to a search space reduction of approximately 45\%, focusing computational resources only on algorithms likely to perform well given the data characteristics.
    Fig.~\ref{fig:search_reduction} visualises this reduction across all four case studies.
 
-   \begin{figure}[t]
+   \begin{figure}[ht]
    \centering
    \begin{tikzpicture}
    \begin{axis}[
