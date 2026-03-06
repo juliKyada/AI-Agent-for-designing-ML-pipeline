@@ -245,7 +245,7 @@
    The preprocessed data are split into training (80\%) and test (20\%) sets using stratified sampling for classification tasks.
 
    \paragraph{Hyperparameter tuning.}
-   For each candidate pipeline, grid search is performed over its hyperparameter space using $f$-fold cross-validation on the training set (default $f=5$). The scoring metric is accuracy for classification and $R^2$ for regression. The combination with the highest mean CV score is selected.
+    For each candidate pipeline, grid search is performed over its hyperparameter space using $f$-fold cross-validation (CV) on the training set (default $f=5$). The scoring metric is accuracy for classification and $R^2$ for regression. The combination with the highest mean CV score is selected. We use CV because averaging performance across folds provides a more reliable estimate of generalization performance than a single train/test split and reduces variance due to sampling noise.
 
    \paragraph{Model evaluation.}
    After tuning, the best configuration is refit on the full training set and evaluated on the held-out test set.
@@ -306,7 +306,9 @@
    Random Forest & 0.8550 & 0.8600 \\
    \hline
    \end{tabular}
-   \end{table}
+    \vspace{1mm}
+    \\{\scriptsize CV = cross-validation score (estimates generalization performance).}
+    \end{table}
 
    \subsubsection{Case Study 2: Scalability (D2)}
    For the large dataset ($N=150k$), traditional AutoML might attempt to train SVM or $k$-NN, which scale poorly ($O(N^2)$ or $O(N^3)$). MetaFlow's size-based rules filtered these out immediately. The system selected \textbf{LightGBM} (Priority 1) and \textbf{XGBoost} (Priority 2), citing ``Fast and efficient for large datasets''. This pruning reduced the candidate search space from $>10$ potential algorithms to just the 3 most scalable ones, yielding estimated time savings of over 40\% compared to an exhaustive baseline.
