@@ -16,6 +16,7 @@ sys.path.insert(0, str(project_root))
 
 from src.main import MetaFlowAgent
 from src.utils import get_logger
+from src.report import GroqReportGenerator
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -123,6 +124,10 @@ if 'cancel_training' not in st.session_state:
     st.session_state.cancel_training = False
 if 'cancel_event' not in st.session_state:
     st.session_state.cancel_event = None
+if 'ai_report' not in st.session_state:
+    st.session_state.ai_report = None
+if 'ai_report_generating' not in st.session_state:
+    st.session_state.ai_report_generating = False
 
 def _render_logs_scrollable(log_lines, max_height_px=360):
     """Render log lines in a fixed-height scrollable box with smart auto-scroll (stay at bottom unless user scrolls up)."""
@@ -608,7 +613,7 @@ def show_results():
         st.markdown(f"**{score:.4f}**")
     
     # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Performance", "📈 All Pipelines", "⚠️ Issues & Recommendations", "📄 Full Report"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Performance", "📈 All Pipelines", "⚠️ Issues & Recommendations", "📄 Full Report", "🤖 AI Report"])
     
     with tab1:
         show_performance_tab(results)
@@ -622,11 +627,14 @@ def show_results():
     with tab4:
         show_full_report_tab(results)
     
+    with tab5:
+        show_ai_report_tab(results)
+    
     # Download section
     st.markdown("---")
     st.markdown("## 💾 Download")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         # Save model
@@ -639,15 +647,30 @@ def show_results():
             st.success(f"✅ Model saved to: {model_path}")
     
     with col2:
-        # Download report
+        # Download technical report
         report = results['evaluation_report']
         st.download_button(
-            label="📄 Download Report",
+            label="📄 Download Technical Report",
             data=report,
             file_name="metaflow_report.txt",
             mime="text/plain",
             use_container_width=True
         )
+
+    with col3:
+        # Download AI report (if generated)
+        ai_report = st.session_state.get("ai_report")
+        if ai_report:
+            st.download_button(
+                label="🤖 Download AI Report (.md)",
+                data=ai_report,
+                file_name="metaflow_ai_report.md",
+                mime="text/markdown",
+                use_container_width=True,
+            )
+        else:
+            st.button("🤖 Download AI Report (.md)", disabled=True, use_container_width=True,
+                      help="Generate the AI Report first (🤖 AI Report tab)")
 
 def show_performance_tab(results):
     """Show performance metrics"""
@@ -843,6 +866,89 @@ def show_full_report_tab(results):
     # Show full report in expandable section
     with st.expander("📊 Detailed Technical Report", expanded=False):
         st.code(results['evaluation_report'])
+
+def show_ai_report_tab(results):
+    """Generate and display an industry-grade AI report powered by Groq."""
+
+    st.markdown("### 🤖 AI-Generated Industry Report")
+    st.markdown(
+        "Uses the **Groq LLM API** (Llama-3.3-70B) to generate a comprehensive, "
+        "professional ML pipeline report — covering methodology, risk assessment, "
+        "production readiness, and a full improvement roadmap."
+    )
+
+    # ── Status / cached report ──────────────────────────────────────────────── #
+    existing_report = st.session_state.get("ai_report")
+
+    if existing_report:
+        st.success("✅ AI Report ready. Scroll down to read it or download it from the **Download** section.")
+        st.markdown("---")
+
+        # Render the Markdown report inside a styled container
+        st.markdown(
+            f'<div class="metaflow-report" style="background:rgba(15,23,36,0.6);'
+            f'border:1px solid rgba(79,70,229,0.25);border-radius:12px;padding:28px 32px;">'
+            f'\n\n{existing_report}\n\n</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("---")
+        col_regen, _ = st.columns([1, 3])
+        with col_regen:
+            if st.button("🔄 Regenerate Report", use_container_width=True):
+                st.session_state.ai_report = None
+                st.rerun()
+        return
+
+    # ── Generation UI ────────────────────────────────────────────────────────── #
+    st.info(
+        "Click **Generate AI Report** to let Groq analyse your pipeline results "
+        "and produce a full industry-grade report (takes ~10–20 seconds)."
+    )
+
+    # Show which model / key will be used
+    api_key_present = bool(os.getenv("GROQ_API_KEY", "").strip())
+    if api_key_present:
+        st.markdown(
+            "<span style='color:#22c55e;font-size:0.9rem'>🔑 GROQ_API_KEY detected from environment</span>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.warning(
+            "⚠️ GROQ_API_KEY not found in environment. "
+            "Make sure your `.env` file contains `GROQ_API_KEY=<your_key>`."
+        )
+
+    if st.button("✨ Generate AI Report", type="primary", use_container_width=False, disabled=not api_key_present):
+        with st.spinner("🤖 Groq is analysing your ML pipeline results… (this may take 15–30 seconds)"):
+            try:
+                reporter = GroqReportGenerator()
+                result_meta = reporter.generate_with_metadata(results)
+                st.session_state.ai_report = result_meta["report"]
+
+                # Show token usage
+                tokens = result_meta.get("tokens_used", 0)
+                finish = result_meta.get("finish_reason", "unknown")
+                model_used = result_meta.get("model", reporter.model)
+
+                st.success(
+                    f"✅ Report generated! "
+                    f"Model: `{model_used}` · "
+                    f"Tokens used: `{tokens:,}` · "
+                    f"Finish reason: `{finish}`"
+                )
+                st.rerun()
+
+            except ImportError:
+                st.error(
+                    "❌ The `groq` Python package is not installed. "
+                    "Run `pip install groq` then restart the app."
+                )
+            except ValueError as exc:
+                st.error(f"❌ Configuration error: {exc}")
+            except Exception as exc:
+                st.error(f"❌ Report generation failed: {exc}")
+
 
 if __name__ == '__main__':
     main()

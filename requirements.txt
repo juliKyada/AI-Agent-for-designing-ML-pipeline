@@ -17,6 +17,9 @@ plotly>=5.14.0
 # Web UI
 streamlit>=1.28.0
 
+# AI Report Generation
+groq>=0.9.0
+
 # Configuration
 pyyaml>=6.0
 python-dotenv>=1.0.0
