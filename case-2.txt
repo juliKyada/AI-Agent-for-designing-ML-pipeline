@@ -1,0 +1,319 @@
+PS D:\Meta-flow-streamlit\AI-Agent-for-designing-ML-pipeline> .venv\Scripts\python.exe run_d2.py 2>&1
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:__init__ - ================================================================================
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:__init__ - MetaFlow Pipeline Agent Initialized
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:__init__ - ================================================================================
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:run - Starting MetaFlow automated pipeline design...
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:_load_data -
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:_load_data - STEP 1: Loading Dataset
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:_load_data - --------------------------------------------------------------------------------
+2026-03-06 19:22:14 | INFO     | src.data.loader:load - Loaded dataset from data\creditcard_fraud\creditcard_sample.csv: 50392 rows, 31 columns
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:_load_data - [OK] Data loaded: 50392 samples, 30 features
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:_extract_metadata -
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:_extract_metadata - STEP 2: Extracting Metadata
+2026-03-06 19:22:14 | INFO     | src.agent.pipeline_agent:_extract_metadata - --------------------------------------------------------------------------------
+2026-03-06 19:22:15 | INFO     | src.data.metadata:extract - Metadata extracted: 50392 samples, 30 features (30 numerical, 0 categorical)
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_extract_metadata - [OK] Metadata extracted
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_extract_metadata - Dataset: 50392 samples, 30 features
+Features: 30 numerical, 0 categorical
+Target: Class (dtype=int64, unique=2)
+Missing feature values: 0
+Duplicate feature rows: 53
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_detect_task -
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_detect_task - STEP 3: Detecting Task Type
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_detect_task - --------------------------------------------------------------------------------
+2026-03-06 19:22:15 | INFO     | src.detection.task_detector:detect - Detecting task type...
+2026-03-06 19:22:15 | INFO     | src.detection.task_detector:detect -   Thresholds: classification_threshold=20, min_samples_per_class=10
+2026-03-06 19:22:15 | INFO     | src.detection.task_detector:detect -   Target: dtype=int64, n_unique=2, n_samples=50392        
+2026-03-06 19:22:15 | INFO     | src.detection.task_detector:detect - Task detection result:
+2026-03-06 19:22:15 | INFO     | src.detection.task_detector:detect -   -> Task type: CLASSIFICATION
+2026-03-06 19:22:15 | INFO     | src.detection.task_detector:detect -   -> Confidence: 95.00%
+2026-03-06 19:22:15 | INFO     | src.detection.task_detector:detect -   -> Reason: Binary target with 2 unique values
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_detect_task - [OK] Task detected: CLASSIFICATION
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_detect_task -   Confidence: 95.00%
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_detect_task -   Reason: Binary target with 2 unique values
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_generate_pipelines -
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_generate_pipelines - STEP 4: Generating Candidate Pipelines
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_generate_pipelines - --------------------------------------------------------------------------------
+2026-03-06 19:22:15 | INFO     | src.pipeline.generator:generate - Generating 3 candidate pipelines for classification
+2026-03-06 19:22:15 | INFO     | src.pipeline.generator:generate - Using rule-based intelligent model selection
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - ================================================================================
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - Rule-Based Model Selection
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - ================================================================================
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - Task Type: classification
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - Dataset Size: medium (50,392 samples)
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - Feature Count: 30
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - Dataset Complexity: simple
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:_recommend_classification_models - Class imbalance detected (min ratio: 0.98%) - adjusting recommendations
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models -
+Selected 3 models:
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - 1. Random Forest (Priority: 1)
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models -    Reason: Robust ensemble method for small-medium datasets (compensated for 0.98% minority class)
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - 2. XGBoost (Priority: 2)
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models -    Reason: Powerful gradient boosting for structured data (compensated for 0.98% minority class)
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models - 3. LightGBM (Priority: 3)
+2026-03-06 19:22:15 | INFO     | src.pipeline.model_selector:select_models -    Reason: Fast gradient boosting alternative for good performance (compensated for 0.98% minority class)
+2026-03-06 19:22:15 | INFO     | src.pipeline.generator:generate -   Pipeline 0: Random Forest
+2026-03-06 19:22:15 | INFO     | src.pipeline.generator:generate -   Pipeline 1: XGBoost
+2026-03-06 19:22:15 | INFO     | src.pipeline.generator:generate -   Pipeline 2: LightGBM
+2026-03-06 19:22:15 | INFO     | src.pipeline.generator:generate - Generated 3 pipelines
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_generate_pipelines - [OK] Generated 3 candidate pipelines
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_train_models -
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_train_models - STEP 5: Training Models
+2026-03-06 19:22:15 | INFO     | src.agent.pipeline_agent:_train_models - --------------------------------------------------------------------------------
+2026-03-06 19:22:15 | INFO     | src.model.trainer:train_all_pipelines - Training 3 pipelines...
+2026-03-06 19:22:15 | WARNING  | src.model.trainer:train_all_pipelines - ⚠️  Severe class imbalance detected (ratio: 101.4:1). MModel performance may be biased toward the majority class. Consider using class balancing techniques.
+2026-03-06 19:22:15 | INFO     | src.model.trainer:train_all_pipelines - Preprocessing data once for all pipelines...
+2026-03-06 19:22:15 | INFO     | src.data.preprocessor:fit - Starting data preprocessing...
+2026-03-06 19:22:15 | INFO     | src.data.preprocessor:_impute_missing_values - No missing values detected
+2026-03-06 19:22:15 | INFO     | src.data.preprocessor:fit - Data preprocessing complete
+2026-03-06 19:22:15 | INFO     | src.model.trainer:train_all_pipelines - Data preprocessed: 50392 samples, 30 features
+2026-03-06 19:22:15 | INFO     | src.model.trainer:train_all_pipelines - Pipeline 1/3
+2026-03-06 19:22:15 | INFO     | src.model.trainer:_train_single_pipeline - Training pipeline: Random Forest
+2026-03-06 19:22:15 | INFO     | src.model.trainer:_train_single_pipeline -   Train size: 40313, Test size: 10079
+2026-03-06 19:22:15 | INFO     | src.model.trainer:_train_single_pipeline -   Features: ['Time', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 'V20', 'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 'Amount']
+2026-03-06 19:22:15 | INFO     | src.model.trainer:_train_single_pipeline -   Performing hyperparameter tuning...
+2026-03-06 19:22:15 | INFO     | src.model.trainer:_tune_hyperparameters -     Grid search: 3 folds × 24 candidates = 72 fits   
+2026-03-06 19:22:15 | INFO     | src.model.trainer:_tune_hyperparameters -     [1/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 1, 'model__min_samples_split': 2, 'model__n_estimators': 100}...
+2026-03-06 19:22:19 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0002)
+2026-03-06 19:22:19 | INFO     | src.model.trainer:_tune_hyperparameters -     [2/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 1, 'model__min_samples_split': 2, 'model__n_estimators': 200}...
+2026-03-06 19:22:26 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:22:26 | INFO     | src.model.trainer:_tune_hyperparameters -     [3/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 1, 'model__min_samples_split': 5, 'model__n_estimators': 100}...
+2026-03-06 19:22:29 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0002)
+2026-03-06 19:22:29 | INFO     | src.model.trainer:_tune_hyperparameters -     [4/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 1, 'model__min_samples_split': 5, 'model__n_estimators': 200}...
+2026-03-06 19:22:36 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:22:36 | INFO     | src.model.trainer:_tune_hyperparameters -     [5/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 2, 'model__min_samples_split': 2, 'model__n_estimators': 100}...
+2026-03-06 19:22:40 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:22:40 | INFO     | src.model.trainer:_tune_hyperparameters -     [6/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 2, 'model__min_samples_split': 2, 'model__n_estimators': 200}...
+2026-03-06 19:22:47 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:22:47 | INFO     | src.model.trainer:_tune_hyperparameters -     [7/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 2, 'model__min_samples_split': 5, 'model__n_estimators': 100}...
+2026-03-06 19:22:51 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0002)
+2026-03-06 19:22:51 | INFO     | src.model.trainer:_tune_hyperparameters -     [8/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 2, 'model__min_samples_split': 5, 'model__n_estimators': 200}...
+2026-03-06 19:22:58 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0003)
+2026-03-06 19:22:58 | INFO     | src.model.trainer:_tune_hyperparameters -     [9/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 1, 'model__min_samples_split': 2, 'model__n_estimators': 100}...
+2026-03-06 19:23:02 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0000)
+2026-03-06 19:23:02 | INFO     | src.model.trainer:_tune_hyperparameters -     [10/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 1, 'model__min_samples_split': 2, 'model__n_estimators': 200}...
+2026-03-06 19:23:08 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:23:08 | INFO     | src.model.trainer:_tune_hyperparameters -     [11/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 1, 'model__min_samples_split': 5, 'model__n_estimators': 100}...
+2026-03-06 19:23:12 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:23:12 | INFO     | src.model.trainer:_tune_hyperparameters -     [12/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 1, 'model__min_samples_split': 5, 'model__n_estimators': 200}...
+2026-03-06 19:23:20 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:23:20 | INFO     | src.model.trainer:_tune_hyperparameters -     [13/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 2, 'model__min_samples_split': 2, 'model__n_estimators': 100}...
+2026-03-06 19:23:24 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:23:24 | INFO     | src.model.trainer:_tune_hyperparameters -     [14/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 2, 'model__min_samples_split': 2, 'model__n_estimators': 200}...
+2026-03-06 19:23:32 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0002)
+2026-03-06 19:23:32 | INFO     | src.model.trainer:_tune_hyperparameters -     [15/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 2, 'model__min_samples_split': 5, 'model__n_estimators': 100}...
+2026-03-06 19:23:36 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0001)
+2026-03-06 19:23:36 | INFO     | src.model.trainer:_tune_hyperparameters -     [16/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': 20, 'model__min_samples_leaf': 2, 'model__min_samples_split': 5, 'model__n_estimators': 200}...
+2026-03-06 19:23:42 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:23:42 | INFO     | src.model.trainer:_tune_hyperparameters -     [17/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 1, 'model__min_samples_split': 2, 'model__n_estimators': 100}...
+2026-03-06 19:23:47 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0000)
+2026-03-06 19:23:47 | INFO     | src.model.trainer:_tune_hyperparameters -     [18/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 1, 'model__min_samples_split': 2, 'model__n_estimators': 200}...
+2026-03-06 19:23:54 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:23:54 | INFO     | src.model.trainer:_tune_hyperparameters -     [19/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 1, 'model__min_samples_split': 5, 'model__n_estimators': 100}...
+2026-03-06 19:23:58 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:23:58 | INFO     | src.model.trainer:_tune_hyperparameters -     [20/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 1, 'model__min_samples_split': 5, 'model__n_estimators': 200}...
+2026-03-06 19:24:05 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0000)
+2026-03-06 19:24:05 | INFO     | src.model.trainer:_tune_hyperparameters -     [21/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 2, 'model__min_samples_split': 2, 'model__n_estimators': 100}...
+2026-03-06 19:24:09 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:24:09 | INFO     | src.model.trainer:_tune_hyperparameters -     [22/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 2, 'model__min_samples_split': 2, 'model__n_estimators': 200}...
+2026-03-06 19:24:16 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0002)
+2026-03-06 19:24:16 | INFO     | src.model.trainer:_tune_hyperparameters -     [23/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 2, 'model__min_samples_split': 5, 'model__n_estimators': 100}...
+2026-03-06 19:24:20 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0001)
+2026-03-06 19:24:20 | INFO     | src.model.trainer:_tune_hyperparameters -     [24/24] Testing {'model__class_weight': 'balanced', 'model__max_depth': None, 'model__min_samples_leaf': 2, 'model__min_samples_split': 5, 'model__n_estimators': 200}...
+2026-03-06 19:24:26 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:24:26 | INFO     | src.model.trainer:_tune_hyperparameters -     Best parameters: {'model__class_weight': 'balanced', 'model__max_depth': 10, 'model__min_samples_leaf': 1, 'model__min_samples_split': 2, 'model__n_estimators': 100}
+2026-03-06 19:24:26 | INFO     | src.model.trainer:_tune_hyperparameters -     Best CV score: 0.9982
+2026-03-06 19:24:28 | INFO     | src.model.trainer:_train_single_pipeline -   Computing 3-fold cross-validation score...
+2026-03-06 19:24:32 | INFO     | src.model.trainer:_train_single_pipeline -   Training complete. CV Score: 0.9982 (+/- 0.0002)
+2026-03-06 19:24:32 | INFO     | src.model.trainer:train_all_pipelines - Pipeline 2/3
+2026-03-06 19:24:32 | INFO     | src.model.trainer:_train_single_pipeline - Training pipeline: XGBoost
+2026-03-06 19:24:32 | INFO     | src.model.trainer:_train_single_pipeline -   Train size: 40313, Test size: 10079
+2026-03-06 19:24:32 | INFO     | src.model.trainer:_train_single_pipeline -   Features: ['Time', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 'V20', 'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 'Amount']
+2026-03-06 19:24:32 | INFO     | src.model.trainer:_train_single_pipeline -   Performing hyperparameter tuning...
+2026-03-06 19:24:32 | INFO     | src.model.trainer:_tune_hyperparameters -     Grid search: 3 folds × 36 candidates = 108 fits       
+2026-03-06 19:24:32 | INFO     | src.model.trainer:_tune_hyperparameters -     [1/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 3, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:24:34 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9970 (+/- 0.0002)
+2026-03-06 19:24:34 | INFO     | src.model.trainer:_tune_hyperparameters -     [2/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 3, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:24:35 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9971 (+/- 0.0002)
+2026-03-06 19:24:35 | INFO     | src.model.trainer:_tune_hyperparameters -     [3/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 3, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:24:37 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9977 (+/- 0.0002)
+2026-03-06 19:24:37 | INFO     | src.model.trainer:_tune_hyperparameters -     [4/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 3, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:24:39 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9978 (+/- 0.0002)
+2026-03-06 19:24:39 | INFO     | src.model.trainer:_tune_hyperparameters -     [5/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:24:40 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9970 (+/- 0.0003)
+2026-03-06 19:24:40 | INFO     | src.model.trainer:_tune_hyperparameters -     [6/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:24:42 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9971 (+/- 0.0002)
+2026-03-06 19:24:42 | INFO     | src.model.trainer:_tune_hyperparameters -     [7/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:24:44 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9976 (+/- 0.0002)
+2026-03-06 19:24:44 | INFO     | src.model.trainer:_tune_hyperparameters -     [8/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:24:46 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9978 (+/- 0.0002)
+2026-03-06 19:24:46 | INFO     | src.model.trainer:_tune_hyperparameters -     [9/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 7, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:24:47 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9970 (+/- 0.0003)
+2026-03-06 19:24:47 | INFO     | src.model.trainer:_tune_hyperparameters -     [10/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 7, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:24:49 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9971 (+/- 0.0002)
+2026-03-06 19:24:49 | INFO     | src.model.trainer:_tune_hyperparameters -     [11/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 7, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:24:51 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9977 (+/- 0.0002)
+2026-03-06 19:24:51 | INFO     | src.model.trainer:_tune_hyperparameters -     [12/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 7, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:24:54 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9977 (+/- 0.0001)
+2026-03-06 19:24:54 | INFO     | src.model.trainer:_tune_hyperparameters -     [13/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 3, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:24:55 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:24:55 | INFO     | src.model.trainer:_tune_hyperparameters -     [14/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 3, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:24:56 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:24:56 | INFO     | src.model.trainer:_tune_hyperparameters -     [15/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 3, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:24:57 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:24:57 | INFO     | src.model.trainer:_tune_hyperparameters -     [16/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 3, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:24:59 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0001)
+2026-03-06 19:24:59 | INFO     | src.model.trainer:_tune_hyperparameters -     [17/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:25:01 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:25:01 | INFO     | src.model.trainer:_tune_hyperparameters -     [18/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:25:02 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0001)
+2026-03-06 19:25:02 | INFO     | src.model.trainer:_tune_hyperparameters -     [19/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:25:04 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0002)
+2026-03-06 19:25:04 | INFO     | src.model.trainer:_tune_hyperparameters -     [20/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:25:06 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0002)
+2026-03-06 19:25:06 | INFO     | src.model.trainer:_tune_hyperparameters -     [21/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 7, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:25:07 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0002)
+2026-03-06 19:25:07 | INFO     | src.model.trainer:_tune_hyperparameters -     [22/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 7, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:25:09 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:25:09 | INFO     | src.model.trainer:_tune_hyperparameters -     [23/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 7, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:25:11 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0002)
+2026-03-06 19:25:11 | INFO     | src.model.trainer:_tune_hyperparameters -     [24/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 7, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:25:13 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:25:13 | INFO     | src.model.trainer:_tune_hyperparameters -     [25/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 3, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:25:15 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0002)
+2026-03-06 19:25:15 | INFO     | src.model.trainer:_tune_hyperparameters -     [26/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 3, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:25:16 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0001)
+2026-03-06 19:25:16 | INFO     | src.model.trainer:_tune_hyperparameters -     [27/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 3, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:25:18 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0003)
+2026-03-06 19:25:18 | INFO     | src.model.trainer:_tune_hyperparameters -     [28/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 3, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:25:19 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0002)
+2026-03-06 19:25:19 | INFO     | src.model.trainer:_tune_hyperparameters -     [29/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:25:20 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9980 (+/- 0.0002)
+2026-03-06 19:25:20 | INFO     | src.model.trainer:_tune_hyperparameters -     [30/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:25:22 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0001)
+2026-03-06 19:25:22 | INFO     | src.model.trainer:_tune_hyperparameters -     [31/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:25:23 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0003)
+2026-03-06 19:25:23 | INFO     | src.model.trainer:_tune_hyperparameters -     [32/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:25:25 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0001)
+2026-03-06 19:25:25 | INFO     | src.model.trainer:_tune_hyperparameters -     [33/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 7, 'model__n_estimators': 100, 'model__subsample': 0.8}...
+2026-03-06 19:25:26 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:25:26 | INFO     | src.model.trainer:_tune_hyperparameters -     [34/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 7, 'model__n_estimators': 100, 'model__subsample': 1.0}...
+2026-03-06 19:25:28 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:25:28 | INFO     | src.model.trainer:_tune_hyperparameters -     [35/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 7, 'model__n_estimators': 200, 'model__subsample': 0.8}...
+2026-03-06 19:25:30 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0001)
+2026-03-06 19:25:30 | INFO     | src.model.trainer:_tune_hyperparameters -     [36/36] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.3, 'model__max_depth': 7, 'model__n_estimators': 200, 'model__subsample': 1.0}...
+2026-03-06 19:25:31 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9981 (+/- 0.0002)
+2026-03-06 19:25:31 | INFO     | src.model.trainer:_tune_hyperparameters -     Best parameters: {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__subsample': 1.0}
+2026-03-06 19:25:31 | INFO     | src.model.trainer:_tune_hyperparameters -     Best CV score: 0.9982
+2026-03-06 19:25:32 | INFO     | src.model.trainer:_train_single_pipeline -   Computing 3-fold cross-validation score...
+2026-03-06 19:25:34 | INFO     | src.model.trainer:_train_single_pipeline -   Training complete. CV Score: 0.9982 (+/- 0.0002)
+2026-03-06 19:25:34 | INFO     | src.model.trainer:train_all_pipelines - Pipeline 3/3
+2026-03-06 19:25:34 | INFO     | src.model.trainer:_train_single_pipeline - Training pipeline: LightGBM
+2026-03-06 19:25:34 | INFO     | src.model.trainer:_train_single_pipeline -   Train size: 40313, Test size: 10079
+2026-03-06 19:25:34 | INFO     | src.model.trainer:_train_single_pipeline -   Features: ['Time', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 'V20', 'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 'Amount']
+2026-03-06 19:25:34 | INFO     | src.model.trainer:_train_single_pipeline -   Performing hyperparameter tuning...
+2026-03-06 19:25:34 | INFO     | src.model.trainer:_tune_hyperparameters -     Grid search: 3 folds × 16 candidates = 48 fits        
+2026-03-06 19:25:34 | INFO     | src.model.trainer:_tune_hyperparameters -     [1/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__num_leaves': 31, 'model__verbosity': -1}...    
+2026-03-06 19:25:35 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9904 (+/- 0.0023)
+2026-03-06 19:25:35 | INFO     | src.model.trainer:_tune_hyperparameters -     [2/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__num_leaves': 50, 'model__verbosity': -1}...    
+2026-03-06 19:25:36 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9904 (+/- 0.0023)
+2026-03-06 19:25:36 | INFO     | src.model.trainer:_tune_hyperparameters -     [3/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__num_leaves': 31, 'model__verbosity': -1}...    
+2026-03-06 19:25:38 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9921 (+/- 0.0009)
+2026-03-06 19:25:38 | INFO     | src.model.trainer:_tune_hyperparameters -     [4/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__num_leaves': 50, 'model__verbosity': -1}...    
+2026-03-06 19:25:40 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9921 (+/- 0.0009)
+2026-03-06 19:25:40 | INFO     | src.model.trainer:_tune_hyperparameters -     [5/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 10, 'model__n_estimators': 100, 'model__num_leaves': 31, 'model__verbosity': -1}...   
+2026-03-06 19:25:41 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9926 (+/- 0.0017)
+2026-03-06 19:25:41 | INFO     | src.model.trainer:_tune_hyperparameters -     [6/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 10, 'model__n_estimators': 100, 'model__num_leaves': 50, 'model__verbosity': -1}...   
+2026-03-06 19:25:42 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9937 (+/- 0.0005)
+2026-03-06 19:25:42 | INFO     | src.model.trainer:_tune_hyperparameters -     [7/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 10, 'model__n_estimators': 200, 'model__num_leaves': 31, 'model__verbosity': -1}...   
+2026-03-06 19:25:45 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9955 (+/- 0.0003)
+2026-03-06 19:25:45 | INFO     | src.model.trainer:_tune_hyperparameters -     [8/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.01, 'model__max_depth': 10, 'model__n_estimators': 200, 'model__num_leaves': 50, 'model__verbosity': -1}...   
+2026-03-06 19:25:47 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9965 (+/- 0.0001)
+2026-03-06 19:25:47 | INFO     | src.model.trainer:_tune_hyperparameters -     [9/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__num_leaves': 31, 'model__verbosity': -1}...     
+2026-03-06 19:25:49 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9979 (+/- 0.0001)
+2026-03-06 19:25:49 | INFO     | src.model.trainer:_tune_hyperparameters -     [10/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__num_leaves': 50, 'model__verbosity': -1}...    
+2026-03-06 19:25:50 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9979 (+/- 0.0001)
+2026-03-06 19:25:50 | INFO     | src.model.trainer:_tune_hyperparameters -     [11/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__num_leaves': 31, 'model__verbosity': -1}...    
+2026-03-06 19:25:52 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9983 (+/- 0.0002)
+2026-03-06 19:25:52 | INFO     | src.model.trainer:_tune_hyperparameters -     [12/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 200, 'model__num_leaves': 50, 'model__verbosity': -1}...    
+2026-03-06 19:25:53 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9983 (+/- 0.0002)
+2026-03-06 19:25:53 | INFO     | src.model.trainer:_tune_hyperparameters -     [13/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 10, 'model__n_estimators': 100, 'model__num_leaves': 31, 'model__verbosity': -1}...   
+2026-03-06 19:25:54 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0003)
+2026-03-06 19:25:54 | INFO     | src.model.trainer:_tune_hyperparameters -     [14/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 10, 'model__n_estimators': 100, 'model__num_leaves': 50, 'model__verbosity': -1}...   
+2026-03-06 19:25:56 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9982 (+/- 0.0003)
+2026-03-06 19:25:56 | INFO     | src.model.trainer:_tune_hyperparameters -     [15/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 10, 'model__n_estimators': 200, 'model__num_leaves': 31, 'model__verbosity': -1}...   
+2026-03-06 19:25:58 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9983 (+/- 0.0003)
+2026-03-06 19:25:58 | INFO     | src.model.trainer:_tune_hyperparameters -     [16/16] Testing {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 10, 'model__n_estimators': 200, 'model__num_leaves': 50, 'model__verbosity': -1}...   
+2026-03-06 19:26:00 | INFO     | src.model.trainer:_tune_hyperparameters -         -> CV score: 0.9983 (+/- 0.0003)
+2026-03-06 19:26:00 | INFO     | src.model.trainer:_tune_hyperparameters -     Best parameters: {'model__class_weight': 'balanced', 'model__learning_rate': 0.1, 'model__max_depth': 10, 'model__n_estimators': 200, 'model__num_leaves': 31, 'model__verbosity': -1}     
+2026-03-06 19:26:00 | INFO     | src.model.trainer:_tune_hyperparameters -     Best CV score: 0.9983
+2026-03-06 19:26:01 | INFO     | src.model.trainer:_train_single_pipeline -   Computing 3-fold cross-validation score...
+2026-03-06 19:26:03 | INFO     | src.model.trainer:_train_single_pipeline -   Training complete. CV Score: 0.9983 (+/- 0.0003)
+2026-03-06 19:26:03 | INFO     | src.model.trainer:train_all_pipelines - Successfully trained 3 pipelines
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_train_models - [OK] Trained 3 models
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_evaluate_models -
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_evaluate_models - STEP 6: Evaluating Performance
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_evaluate_models - --------------------------------------------------------------------------------
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:evaluate_all - Evaluating 3 models...
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:evaluate - Evaluating pipeline: Random Forest
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -   Evaluation results for Random Forest:
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     Accuracy: train=0.9997, test=0.9975
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     F1 Score: train=0.9848, test=0.8571
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     CV Score: 0.9982 (+/- 0.0002)
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     No issues detected
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:evaluate - Evaluating pipeline: XGBoost
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -   Evaluation results for XGBoost:
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     Accuracy: train=1.0000, test=0.9977
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     F1 Score: train=1.0000, test=0.8686
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     CV Score: 0.9982 (+/- 0.0002)
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     No issues detected
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:evaluate - Evaluating pipeline: LightGBM
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -   Evaluation results for LightGBM:
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     Accuracy: train=1.0000, test=0.9977
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     F1 Score: train=1.0000, test=0.8701
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     CV Score: 0.9983 (+/- 0.0003)
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:_log_evaluation_summary -     No issues detected
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_evaluate_models - [OK] Evaluated 3 pipelines
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements -
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements - STEP 7: Checking for Issues & Planning Improvements
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements - --------------------------------------------------------------------------------
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements -
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements - ================================================================================
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements - OPTIMIZATION ITERATION 1/1
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements - ================================================================================
+2026-03-06 19:26:03 | INFO     | src.pipeline.optimizer:generate_improvement_plan - Generating comprehensive improvement plan...     
+2026-03-06 19:26:03 | INFO     | src.pipeline.optimizer:generate_improvement_plan - All pipelines are performing well!
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements - [OK] All pipelines performing well - optimization complete
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements -
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_check_and_plan_improvements - Optimization completed after 1 iterations   
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_get_best_pipeline -
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_get_best_pipeline - STEP 8: Selecting Best Pipeline
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_get_best_pipeline - --------------------------------------------------------------------------------
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:get_best_pipeline - Best pipeline: XGBoost (test_accuracy=0.9977)
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_get_best_pipeline - [OK] Best pipeline: XGBoost
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_generate_explanation -
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_generate_explanation - STEP 9: Generating Explanation
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_generate_explanation - --------------------------------------------------------------------------------
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:_generate_explanation - [OK] Explanation generated
+2026-03-06 19:26:03 | INFO     | src.model.evaluator:get_best_pipeline - Best pipeline: XGBoost (test_accuracy=0.9977)
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:run - ================================================================================
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:run - MetaFlow pipeline design completed successfully!
+2026-03-06 19:26:03 | INFO     | src.agent.pipeline_agent:run - ================================================================================
+BEST: XGBoost
+{
+  "train_accuracy": 1.0,
+  "test_accuracy": 0.9977,
+  "train_precision": 1.0,
+  "test_precision": 0.987,
+  "train_recall": 1.0,
+  "test_recall": 0.7755,
+  "train_f1": 1.0,
+  "test_f1": 0.8686,
+  "cv_mean": 0.9982,
+  "cv_std": 0.0002
+}
+ALL PIPELINES:
+  Random Forest                             CV=0.9982  TestAcc=0.9975
+  XGBoost                                   CV=0.9982  TestAcc=0.9977
+  LightGBM                                  CV=0.9983  TestAcc=0.9977
+META: {'n_samples': 50392, 'n_features': 30, 'target_name': 'Class'}

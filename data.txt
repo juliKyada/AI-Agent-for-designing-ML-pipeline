@@ -1,0 +1,15 @@
+i am doing this as small
+https://www.kaggle.com/datasets/johnsmith88/heart-disease-dataset
+
+
+this as large 
+https://www.kaggle.com/code/gpreda/credit-card-fraud-detection-predictive-models/input
+
+
+
+this as high dimentinal data
+https://www.kaggle.com/datasets/brunogrisci/brain-cancer-gene-expression-cumida
+
+
+this as regression 
+https://www.kaggle.com/datasets/harlfoxem/housesalesprediction
