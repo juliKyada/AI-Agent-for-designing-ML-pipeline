@@ -212,6 +212,7 @@ def main():
                     df = pd.read_excel(uploaded_file)
                 
                 st.session_state.dataset = df
+                st.session_state.dataset_filename = uploaded_file.name
                 st.success(f"✅ Loaded: {uploaded_file.name}")
                 st.info(f"📊 {len(df)} rows × {len(df.columns)} columns")
                 
@@ -923,7 +924,13 @@ def show_ai_report_tab(results):
         with st.spinner("🤖 Groq is analysing your ML pipeline results… (this may take 15–30 seconds)"):
             try:
                 reporter = GroqReportGenerator()
-                result_meta = reporter.generate_with_metadata(results)
+                # Enrich results with dataset filename and first-5-rows preview
+                enriched_results = dict(results)
+                raw_df = st.session_state.get("dataset")
+                if raw_df is not None:
+                    enriched_results["data_preview"] = raw_df.head(5).to_string()
+                enriched_results["file_name"] = st.session_state.get("dataset_filename", "unknown")
+                result_meta = reporter.generate_with_metadata(enriched_results)
                 st.session_state.ai_report = result_meta["report"]
 
                 # Show token usage

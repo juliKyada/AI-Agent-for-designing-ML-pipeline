@@ -29,6 +29,8 @@ def _build_prompt(results: Dict[str, Any]) -> str:
     task_type = results.get("task_type", "unknown").upper()
     metadata = results.get("metadata", {})
     best = results.get("best_pipeline", {})
+    file_name = results.get("file_name", "unknown")
+    data_preview = results.get("data_preview", None)
     all_pipelines = results.get("all_pipelines", [])
     improvement_plan = results.get("improvement_plan", {})
     preprocessing = results.get("preprocessing", {}) or {}
@@ -114,6 +116,13 @@ Your task is to write a **comprehensive, professional, industry-grade ML Pipelin
 
 ## INPUT DATA
 
+**Dataset File Name:** {file_name}
+
+**Dataset Sample (first 5 rows):**
+```
+{data_preview if data_preview else "Not available"}
+```
+
 **Task Type:** {task_type}
 
 **Dataset Characteristics:**
@@ -158,6 +167,7 @@ Generate a complete report with **all** of the following sections. Use Markdown 
 A concise (3–5 sentences) high-level summary: problem type, dataset profile, best-performing model, primary metric result, and overall pipeline health. Include a deployment recommendation (production-ready / needs improvement / major rework needed).
 
 ### 2. Dataset Analysis
+- Dataset description and context
 - Dataset size, dimensionality, memory profile
 - Feature composition (numerical vs categorical)
 - Data quality assessment: missing values, outliers, class imbalance
