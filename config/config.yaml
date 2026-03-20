@@ -67,6 +67,8 @@ models:
     - xgboost
     - lightgbm
     - svm
+    - catboost
+    - knn
   regression:
     - linear_regression
     - ridge
@@ -92,6 +94,7 @@ logging:
 
 # Output
 output:
+
   save_models: true
   model_dir: "models/"
   save_predictions: true
