@@ -1,30 +1,25 @@
-   \documentclass[conference]{IEEEtran}
-  
-  \usepackage{cite}
-  \usepackage{amsmath,amssymb,amsfonts} 
-  \usepackage{algorithmic}
-  \usepackage{graphicx}
-  \usepackage{textcomp}
- \usepackage[table]{xcolor}
- \usepackage{pgfplots}
-  \usepackage{url} 
-  \usepackage{balance}
-  \usepackage{hyperref}
-    \usepackage[justification=raggedright,singlelinecheck=false]{caption}
+   \documentclass[conference]{llncs}
 
-    % Table captions: put label ("Table N") on its own left-aligned line
-    \captionsetup[table]{labelsep=newline,justification=raggedright,singlelinecheck=false}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts} 
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage[table]{xcolor}
+\usepackage{pgfplots}
+\usepackage{url} 
+\usepackage{hyperref}
+\usepackage[justification=raggedright,singlelinecheck=false]{caption}
 
-   \title{Constraints and Heuristics: Leveraging Dataset Metadata for Efficient AutoML}
+% Table captions: put label ("Table N") on its own left-aligned line
+\captionsetup[table]{labelsep=newline,justification=raggedright,singlelinecheck=false}
 
-\author{\IEEauthorblockN{Juli Kyada \and Harsh Kakadiya}
+\title{Constraints and Heuristics: Leveraging Dataset Metadata for Efficient AutoML}
 
-\authorrunning{J. Kyada and H. Kakadiya}
+\author{Juli Kyada \and Harsh Kakadiya}
 
-\institute{
-Charotar University of Science and Technology, Changa, India \\
+\institute{Charotar University of Science and Technology, Changa, India\\
 \email{julikyada293@gmail.com, harshkakadiya128@gmail.com}
-}
 }
 
    \begin{document}
@@ -333,7 +328,7 @@ In order to lead us in our search, we propose the following research questions:
    \subsection{Results Analysis}
 
    \subsubsection{Case Study 1: Small Dataset (D1 -- Heart Disease)}   %humanized 
-   On the Heart Disease dataset ($N=1{,}025$, $p=13$), MetaFlow correctly detected a binary classification task with 95\% confidence. The \texttt{RuleBasedModelSelector} classified the dataset as \emph{small/simple} and selected ensemble methods: Random Forest (Priority~1), XGBoost (Priority~2), and LightGBM (Priority~3).
+   On the Heart Disease dataset~\cite{janosi1988heart} ($N=1{,}025$, $p=13$), MetaFlow correctly detected a binary classification task with 95\% confidence. The \texttt{RuleBasedModelSelector} classified the dataset as \emph{small/simple} and selected ensemble methods: Random Forest (Priority~1), XGBoost (Priority~2), and LightGBM (Priority~3).
    Table~\ref{tab:d1_results} shows performance after grid-search tuning. All three ensembles achieved strong generalisation; LightGBM attained the highest cross-validation score (0.9720), while all models reached perfect accuracy on the held-out test split, consistent with the dataset's low feature-to-sample ratio and clean numerical features.
 
    \begin{table}[htbp]
@@ -355,7 +350,7 @@ In order to lead us in our search, we propose the following research questions:
     \end{table}
 
    \subsubsection{Case Study 2: Scalability (D2 -- Credit Card Fraud)}  %humanized
-   On the Credit Card Fraud dataset ($N=50{,}392$, $p=30$, minority class 0.98\%), MetaFlow's size-based rules immediately classified the task as \emph{medium/large} scale, filtering out $O(N^2)$ algorithms such as SVM and $k$-NN. The class-imbalance metadata flag (\texttt{is\_highly\_imbalanced}) automatically injected \texttt{class\_weight=`balanced'} into the hyperparameter grids of all three selected models. This pruning reduced the search space from $>10$ candidate algorithms to the 3 most scalable, imbalance-aware ones.
+   On the Credit Card Fraud dataset~\cite{dalpozzolo2015fraud} ($N=50{,}392$, $p=30$, minority class 0.98\%), MetaFlow's size-based rules immediately classified the task as \emph{medium/large} scale, filtering out $O(N^2)$ algorithms such as SVM and $k$-NN. The class-imbalance metadata flag (\texttt{is\_highly\_imbalanced}) automatically injected \texttt{class\_weight=`balanced'} into the hyperparameter grids of all three selected models. This pruning reduced the search space from $>10$ candidate algorithms to the 3 most scalable, imbalance-aware ones.
 
    Table~\ref{tab:d2_results} summarises the performance of selected models versus excluded candidates. All three gradient-boosting models achieved CV accuracy $>0.998$, validating the rule-based exclusion of slower classifiers.
 
@@ -380,7 +375,7 @@ In order to lead us in our search, we propose the following research questions:
    \end{table}
 
    \subsubsection{Case Study 3: High Dimensionality (D3)} %humanized 
-  D3 employs the NCBI GEO Brain Cancer Gene Expression dataset (GSE50161), comprising $n=130$ samples from five tumor types (ependymoma, glioblastoma, medulloblastoma, normal, and pilocytic astrocytoma), with $p=54{,}676$ Affymetrix probe features, resulting in a feature-to-sample ratio of $p/N \approx 421$. MetaFlow chose the top 1{,}000 probes with the most variation ($p/N \approx 7.7$, which is still very high-dimensional) to keep the grid search manageable. Because there were only ($N=130$) samples, the complexity rules turned on \textit{small-dataset} priority, which hurt high-variance ensembles and instead suggested lightweight generalizing models like Logistic Regression, Decision Tree, and Gaussian Naive Bayes.
+  D3 employs the NCBI GEO Brain Cancer Gene Expression dataset (GSE50161)~\cite{feltes2019cumida}, comprising $n=130$ samples from five tumor types (ependymoma, glioblastoma, medulloblastoma, normal, and pilocytic astrocytoma), with $p=54{,}676$ Affymetrix probe features, resulting in a feature-to-sample ratio of $p/N \approx 421$. MetaFlow chose the top 1{,}000 probes with the most variation ($p/N \approx 7.7$, which is still very high-dimensional) to keep the grid search manageable. Because there were only ($N=130$) samples, the complexity rules turned on \textit{small-dataset} priority, which hurt high-variance ensembles and instead suggested lightweight generalizing models like Logistic Regression, Decision Tree, and Gaussian Naive Bayes.
   The result is shown in Table~\ref{tab:d3_results}. Decision Tree had the highest test accuracy ($0.9615$), while Logistic Regression had the highest cross-validated score ($0.9714$). This shows that bias-variance-aware selection is important when $N$ is small.
 
    \begin{table}[htbp]
@@ -401,7 +396,7 @@ In order to lead us in our search, we propose the following research questions:
    \end{table}
 
    \subsubsection{Case Study 4: Regression (D4)} %humanized 
-(D4) uses the King County House Sales dataset from Kaggle. This dataset has $N=21{,}613$ transactions with $p=20$ such as the number of bedrooms, bathrooms, square footage, and location. The goal is to predict a continuous \texttt{price} target. MetaFlow worked on a stratified random sample of 5{,}000
+(D4) uses the King County House Sales dataset~\cite{harlfoxem2016kc} from Kaggle. This dataset has $N=21{,}613$ transactions with $p=20$ such as the number of bedrooms, bathrooms, square footage, and location. The goal is to predict a continuous \texttt{price} target. MetaFlow worked on a stratified random sample of 5{,}000
 records. The system accurately identified regression, given the float-valued target with 1{,}671 \textit{medium-to-large dataset} unique values, and implemented medium-to-large dataset rules, subsequently recommending ensemble tree models: \textbf{XGBoost}, Random Forest, and LightGBM.
 As shown in Table~\ref{tab:d4_results}, XGBoost exhibited the highest cross-validated $R^2$ among the tuned ensembles ($0.8546$), while also maintaining a competitive test $R^2$ ($0.8453$). the three ensembles exhibited a much better capability to predict non-linear price relationship over the linear baselines thus suggesting that the metadata-driven model selection was an effective match to the complexity of data.
 
@@ -471,7 +466,7 @@ the most adequate candidates.}
    \subsubsection{RQ1: Efficacy of Metadata Decisions} % humanized 
    Our Experiments to verify that lightweight metadata is sufficient to drive high-level decisions. In D4 (KC House Sales), the system correctly identified the regression task from a continuous float target ($N = 21,613$, $p = 20$) and some of the ensemble methods chosen are achieved test $R^2 = 0.8453$ with XGBoost. 
 
-In D3 (Brain Cancer Gene Expression), the tiny-sample rule ($N = 130$, $p/N \approx 7.7$), correctly deprioritized high variance ensembles, selecting lightweight models; Decision Tree achieved test accuracy of $0.9615$ on 5 classes of tumor while Logistic Regression led for cross validation ($0.9714$). 
+In D3 (Brain Cancer Gene Expression)~\cite{feltes2019cumida}, the tiny-sample rule ($N = 130$, $p/N \approx 7.7$), correctly deprioritized high variance ensembles, selecting lightweight models; Decision Tree achieved test accuracy of $0.9615$ on 5 classes of tumor while Logistic Regression led for cross validation ($0.9714$). 
 
 This validates that metadata rules can successfully imitate the human experts intuition and the selection of high-performing pipelines.
 
@@ -485,8 +480,7 @@ This confirms that rule based constraints have the advantage of significantly re
    \label{sec:conclusion}
    This study examined how dataset metadata can help choose the best pipelines, which reduces the need for extensive searching. We placed this research within the larger fields of AutoML and meta-learning to show the importance of carefully summarizing data. Future work will involve using Large Language Model agents ~\cite{shen2024hugginggpt} to analyze complex metadata and automate the complete design of machine learning experiments.
    %==============================================================================
-   \balance
-  \bibliographystyle{IEEEtran}
-   \bibliography{references}
+   \bibliographystyle{splncs04}
+\bibliography{references}
 
-   \end{document}
+\end{document}

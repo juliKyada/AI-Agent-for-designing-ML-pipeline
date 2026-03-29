@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MetaFlow Poster - 3x4 Feet</title>
+  <link rel="stylesheet" href="poster_3x4.css" />
+</head>
+<body>
+  <main class="poster" role="main" aria-label="Project poster 3x4 feet">
+    <header class="poster-header">
+      <p class="poster-kicker">AIML317 / PR-III - Student Group Project</p>
+      <h1>Constraints and Heuristics: Leveraging Dataset Metadata for Efficient AutoML</h1>
+      <p class="team-line">
+        Juli Kyada, Harsh Kakadiya | Department of Artificial Intelligence and Machine Learning,
+        Charotar University of Science and Technology
+      </p>
+    </header>
+
+    <section class="top-tags" aria-label="Poster overview tabs">
+      <article>Problem Domain</article>
+      <article>Proposed Model</article>
+      <article>Experimental Validation</article>
+      <article>Performance Outcomes</article>
+    </section>
+
+    <section class="row two-col">
+      <article class="panel panel-problem">
+        <h2>Problem Domain &amp; Motivation</h2>
+        <ul>
+          <li><strong>Domain:</strong> Automated ML pipeline design for tabular datasets using metadata-driven constraints.</li>
+          <li>Manual pipeline selection is complex, slow, and dependent on expert trial-and-error.</li>
+          <li>Exhaustive AutoML evaluates many unsuitable models, increasing compute cost.</li>
+          <li>Our motivation is to prune the search space early using dataset characteristics.</li>
+        </ul>
+      </article>
+
+      <article class="panel panel-objective">
+        <h2>Objective</h2>
+        <ul class="check-list">
+          <li>Build MetaFlow, a rule-guided AutoML assistant based on dataset metadata.</li>
+          <li>Automatically detect task type and configure preprocessing + model families.</li>
+          <li>Rank model candidates with interpretable constraints and tunable grids.</li>
+          <li>Validate both performance quality and computational efficiency.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="row methodology">
+      <h2>Proposed Architecture / Methodology</h2>
+      <div class="flow" aria-label="Methodology flow">
+        <article>
+          <h3>Input Data</h3>
+          <p>Tabular dataset with target column.</p>
+        </article>
+        <article>
+          <h3>Metadata Extraction</h3>
+          <p>9 groups: schema, quality, outliers, cardinality, imbalance, and correlation.</p>
+        </article>
+        <article>
+          <h3>Task Detection</h3>
+          <p>Rule chain identifies classification or regression with confidence.</p>
+        </article>
+        <article>
+          <h3>Pre-processing</h3>
+          <p>Missing handling, cleaning, scaling, one-hot encoding.</p>
+        </article>
+        <article>
+          <h3>Model Selection</h3>
+          <p>Metadata-conditioned ranking and model-specific hyperparameter grids.</p>
+        </article>
+        <article>
+          <h3>Pipeline + CV</h3>
+          <p>Top-k pipelines tuned with cross-validation and evaluated on hold-out test set.</p>
+        </article>
+        <article>
+          <h3>Best Output</h3>
+          <p>Best model, issue flags, and optimization recommendations.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="row two-col">
+      <article class="panel panel-dataset">
+        <h2>Dataset &amp; Experimental Setup</h2>
+        <h3>Datasets</h3>
+        <ul>
+          <li><strong>D1 Heart Disease:</strong> N=1,025, p=13, binary classification.</li>
+          <li><strong>D2 Credit Card Fraud:</strong> N=284,807, p=30, severe class imbalance.</li>
+          <li><strong>D3 Brain Cancer Gene Expression:</strong> N=130, p=54,676, multiclass.</li>
+          <li><strong>D4 House Sales:</strong> N=21,613, p=19, regression.</li>
+        </ul>
+        <h3>Experimental Setup</h3>
+        <ul>
+          <li>80/20 split (stratified for classification), grid-search CV for each candidate.</li>
+          <li>Top-k candidate pipelines selected via rule-based metadata filtering.</li>
+          <li>Classification: Accuracy, Precision, Recall, F1. Regression: R2, MSE, RMSE, MAE.</li>
+        </ul>
+      </article>
+
+      <article class="panel panel-results">
+        <h2>Results &amp; Performance Metrics</h2>
+        <div class="metric-cards">
+          <article>
+            <h3>D1</h3>
+            <p>LightGBM</p>
+            <p>CV: 0.9720</p>
+            <p>Test Acc: 1.0000</p>
+          </article>
+          <article>
+            <h3>D2</h3>
+            <p>XGBoost</p>
+            <p>CV: 0.9982</p>
+            <p>F1: 0.8686</p>
+          </article>
+          <article>
+            <h3>D3</h3>
+            <p>Decision Tree</p>
+            <p>CV: 0.9042</p>
+            <p>Test Acc: 0.9615</p>
+          </article>
+          <article>
+            <h3>D4</h3>
+            <p>XGBoost</p>
+            <p>CV R2: 0.8546</p>
+            <p>Test R2: 0.8453</p>
+          </article>
+        </div>
+        <h3>Key Observations</h3>
+        <ul>
+          <li>Metadata rules selected strong candidates across small, large, and high-dimensional datasets.</li>
+          <li>Imbalance and complexity modifiers improved practical model prioritization.</li>
+          <li>Candidate evaluation reduced from 9 to 3 in case studies (about 67% reduction).</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="row two-col">
+      <article class="panel panel-table">
+        <h2>Comparative Analysis</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Approach</th>
+              <th>Interpretability</th>
+              <th>Efficiency</th>
+              <th>Scalability</th>
+              <th>Performance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Exhaustive AutoML</td>
+              <td>Low</td>
+              <td>Low</td>
+              <td>Moderate</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td>Warm-start Meta-learning</td>
+              <td>Moderate</td>
+              <td>Moderate</td>
+              <td>High</td>
+              <td>High</td>
+            </tr>
+            <tr class="highlight-row">
+              <td>MetaFlow (This Work)</td>
+              <td>High</td>
+              <td>High</td>
+              <td>High</td>
+              <td>High</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="panel panel-outcome">
+        <h2>Conclusion &amp; Key Outcomes</h2>
+        <ul class="check-list">
+          <li>RQ1: Lightweight metadata can guide accurate task and model selection.</li>
+          <li>RQ2: Rule-based pruning lowers compute without reducing quality.</li>
+          <li>MetaFlow balances interpretability, speed, and strong performance.</li>
+          <li>Future work: LLM-enhanced reasoning for richer metadata patterns.</li>
+        </ul>
+        <div class="outcome-box">
+          <h3>Final Output</h3>
+          <p>Best pipeline + ranked alternatives + diagnostics + optimization suggestions.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
