@@ -12,7 +12,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from src.agent import PipelineAgent
-from src.utils import setup_logger, get_logger
+from src.utils.logger import setup_logger, get_logger
 
 # Setup logger on import
 setup_logger()

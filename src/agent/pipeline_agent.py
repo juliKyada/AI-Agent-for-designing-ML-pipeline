@@ -8,7 +8,8 @@ from src.data import DataLoader, MetadataExtractor
 from src.detection import TaskDetector, TaskType
 from src.pipeline import PipelineGenerator, PipelineOptimizer
 from src.model import ModelTrainer, ModelEvaluator
-from src.utils import get_logger, get_config, setup_logger
+from src.utils.logger import get_logger, setup_logger
+from src.utils.config import get_config
 
 logger = get_logger()
 config = get_config()

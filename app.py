@@ -15,7 +15,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from src.main import MetaFlowAgent
-from src.utils import get_logger
+from src.utils.logger import get_logger
 from src.report import GroqReportGenerator
 import plotly.express as px
 import plotly.graph_objects as go

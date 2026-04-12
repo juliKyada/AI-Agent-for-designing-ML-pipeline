@@ -14,7 +14,8 @@ def test_imports():
         from src.pipeline import PipelineGenerator, PipelineOptimizer
         from src.model import ModelTrainer, ModelEvaluator
         from src.agent import PipelineAgent
-        from src.utils import get_config, setup_logger
+        from src.utils.config import get_config
+        from src.utils.logger import setup_logger
         
         print("✓ All imports successful")
         return True
