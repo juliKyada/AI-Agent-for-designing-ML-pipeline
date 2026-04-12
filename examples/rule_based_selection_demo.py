@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.agent import PipelineAgent
 from src.pipeline import RuleBasedModelSelector
-from src.data import MetadataExtractor
+from src.data import MetadataExtractor, DataLoader
 from src.detection import TaskDetector
 
 
@@ -170,12 +170,22 @@ def example_3_high_dimensional():
     print(f"  Complexity: {summary['dataset_complexity'].upper()}")
     print(f"  Reason: High feature-to-sample ratio ({n_features}/{n_samples} = {n_features/n_samples:.2f})")
     
-    print(f"\nRecommended Models (Focus on Regularization):")
-    for i, rec in enumerate(recommendations, 1):
-        print(f"\n{i}. {rec.name}")
-        print(f"   Reason: {rec.reason}")
-        has_regularization = 'L1' in rec.description or 'L2' in rec.description or 'regularization' in rec.description.lower()
-        print(f"   Has Regularization: {'Yes ✓' if has_regularization else 'No'}")
+    print(f"\n{'─'*80}")
+    print("Running Pipeline for High-Dim Data:")
+    print(f"{'─'*80}")
+    agent = PipelineAgent()
+    results = agent.run(dataframe=data, target_column='disease', n_pipelines=3)
+    
+    print(f"\n{'─'*80}")
+    print("High-Dim Results (Accuracy):")
+    print(f"{'─'*80}")
+    for i, pipeline in enumerate(results['all_pipelines'], 1):
+        metrics = pipeline['metrics']
+        acc = metrics.get('test_accuracy', metrics.get('accuracy', 'N/A'))
+        tr_acc = metrics.get('train_accuracy', 'N/A')
+        print(f"\n{i}. {pipeline['pipeline_name']}")
+        print(f"   Train Accuracy: {tr_acc}")
+        print(f"   Test Accuracy: {acc}")
     
 
 def example_4_regression():
@@ -232,18 +242,27 @@ def example_4_regression():
     print(f"  Confidence: {confidence:.2%}")
     print(f"  Reason: {reason}")
     
-    selector = RuleBasedModelSelector()
-    recommendations = selector.select_models(task_type, metadata, max_models=4)
-    
+    # Run pipeline with rule-based selection for REGRESSION
     print(f"\n{'─'*80}")
-    print("Regression Model Recommendations:")
+    print("Running Pipeline for Regression:")
     print(f"{'─'*80}")
+    agent = PipelineAgent()
+    # We use a subset of the first 500 samples to keep demo fast, but enough to show metrics
+    data_demo = data.iloc[:500].copy()
+    results = agent.run(dataframe=data_demo, target_column='price', n_pipelines=3)
+
+    print(f"\n{'─'*80}")
+    print("Regression Results (R2 Score):")
+    print(f"{'─'*80}")
+    for i, pipeline in enumerate(results['all_pipelines'], 1):
+        metrics = pipeline['metrics']
+        r2 = metrics.get('test_r2', metrics.get('r2', 'N/A'))
+        print(f"\n{i}. {pipeline['pipeline_name']}")
+        if 'selection_reason' in pipeline:
+            print(f"   Reason: {pipeline['selection_reason']}")
+        print(f"   R2 Score: {r2}")
     
-    for i, rec in enumerate(recommendations, 1):
-        print(f"\n{i}. {rec.name}")
-        print(f"   Priority: {rec.priority}")
-        print(f"   Reason: {rec.reason}")
-        print(f"   Hyperparameters to tune: {len(rec.hyperparameters)}")
+    print(f"\nBest Model: {results['best_pipeline']['name']}")
 
 
 def comparison_with_legacy():
@@ -327,7 +346,6 @@ if __name__ == "__main__":
     print("intelligently chooses models based on dataset characteristics.")
     
     # Run examples
-    example_2_large_dataset()
     example_3_high_dimensional()
     example_4_regression()
     comparison_with_legacy()
