@@ -4,10 +4,13 @@ AI Agent for orchestrating the entire ML pipeline automation process
 import pandas as pd
 from pathlib import Path
 from typing import Union, Optional, Dict, Any, Callable, List
-from src.data import DataLoader, MetadataExtractor
-from src.detection import TaskDetector, TaskType
-from src.pipeline import PipelineGenerator, PipelineOptimizer
-from src.model import ModelTrainer, ModelEvaluator
+from src.data.loader import DataLoader
+from src.data.metadata import MetadataExtractor
+from src.detection.task_detector import TaskDetector, TaskType
+from src.pipeline.generator import PipelineGenerator
+from src.pipeline.optimizer import PipelineOptimizer
+from src.model.trainer import ModelTrainer
+from src.model.evaluator import ModelEvaluator
 from src.utils.logger import get_logger, setup_logger
 from src.utils.config import get_config
 

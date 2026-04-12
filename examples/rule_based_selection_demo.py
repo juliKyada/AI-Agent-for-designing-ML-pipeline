@@ -13,9 +13,10 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.agent import PipelineAgent
-from src.pipeline import RuleBasedModelSelector
-from src.data import MetadataExtractor, DataLoader
-from src.detection import TaskDetector
+from src.pipeline.model_selector import RuleBasedModelSelector
+from src.data.metadata import MetadataExtractor
+from src.data.loader import DataLoader
+from src.detection.task_detector import TaskDetector
 
 
 def example_1_small_dataset():
@@ -89,7 +90,6 @@ def example_2_large_dataset():
     print(f"  Categorical Features: 4")
     
     # Extract metadata and show rule-based selection
-    from src.data import DataLoader
     loader = DataLoader()
     X, y = loader.load_from_dataframe(data, 'will_return')
     
