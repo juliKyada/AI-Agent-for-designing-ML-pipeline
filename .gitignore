@@ -51,6 +51,8 @@ logs/
 
 # Data
 data/
+!src/data/
+!src/data/*.py
 *.csv
 *.xlsx
 *.parquet
